@@ -1,7 +1,30 @@
-# Multi-Agent DDPG Implementation on PongDuel
+# A PyTorch Implementation of MADDPG
 
-The code here does NOT strictly comply with the implementation details as suggested in the paper [*Multi-Agent Actor-Critic for Mixed Cooperative-Competitive Environments*](Multi-Agent Actor-Critic for Mixed Cooperative-Competitive Environments). 
+**Disclaimer:** The code here does NOT strictly comply with the implementation details as suggested in the paper [*Multi-Agent Actor-Critic for Mixed Cooperative-Competitive Environments*](https://arxiv.org/abs/1706.02275). 
 
-Instead, it's more like a not-so-sound multi-agent variation of the DDPG algorithm. But the code should be much more friendly for RL beginners. 
+## Issues with Multi-Agent Environments
 
-will complete the TODOs ASAP...
+- Multi-Agent environments are non-stationary: each agent's policy changes as training progresses.
+- Policy-gradient variance grows as number of agents increases.
+
+## MADDPG Key Concepts
+
+- Adopts a framework of
+  - **Centralized training**
+    - Agents share experience during training;
+    - Implemented via a shared experience-replay buffer.
+  - **Decentralized execution**
+    - Each agent uses only local observations at execution time.
+- Extend actor-critic policy gradient methods (e.g. DDPG):
+  - Critic is augmented with information about policies of other agents (or, a critic might be programmed to infer those policies);
+  - Actor has access only to local information.
+
+## Actor Network
+
+- Actor (policy) network
+
+  - Two layers of 64 neurons each,
+  - ReLU activation,
+  - Softmax action selection on output layer
+
+  
