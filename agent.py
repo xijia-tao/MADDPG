@@ -20,6 +20,7 @@ UPDATE_EVERY = 10
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+
 class Agent():
 
 	def __init__(self, s_dim, a_dim, seed):
@@ -62,7 +63,7 @@ class Agent():
 		self.actor_local.train()
 		if add_noise:
 			action += self.noise.sample()
-		return np.argmax(action)
+		return action
 
 	def reset(self):
 		self.noise.reset()
@@ -116,6 +117,7 @@ class OUNoise:
 		dx = self.theta * (self.mu - x) + self.sigma * np.array([random.random() for i in range(len(x))])
 		self.state = x + dx
 		return self.state
+
 
 class ReplayBuffer:
 
