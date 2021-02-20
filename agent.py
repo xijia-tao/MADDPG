@@ -23,7 +23,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Agent():
 
-	def __init__(self, s_dim, a_dim, seed):
+	def __init__(self, s_dim, a_dim, seed, load_path):
 		self.s_dim = s_dim
 		self.a_dim = a_dim
 		self.seed = random.seed(seed)
@@ -43,6 +43,10 @@ class Agent():
 		self.update_every = UPDATE_EVERY
 
 		self.t_step = 0
+
+		if load_path:
+			self.actor_local.load_state_dict(torch.load(load_path[0]))
+			self.critic_local.load_state_dict(torch.load(load_path[1]))
 
 	def step(self, s, a, r, s_, done):
 		self.memory.add(s, a, r, s_, done)

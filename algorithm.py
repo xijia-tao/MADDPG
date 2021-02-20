@@ -4,7 +4,7 @@ import numpy as np
 from collections import deque
 
 
-def ddpg(n, agent, env, n_ep=1000, max_t=700):
+def ddpg(n, agent, env, n_ep, max_t, save_every):
 	scores_deque = deque(maxlen=100)
 	scores_list = []
 	max_score = -np.Inf
@@ -19,6 +19,7 @@ def ddpg(n, agent, env, n_ep=1000, max_t=700):
 			a = []
 			for i_ in range(n):
 				a.append(agent.act(np.array(s[i_])))
+				agent.reset()
 			a = np.array(a)
 			s_, r, dones, _ = env.step([np.argmax(a_) for a_ in a])
 			for i_ in range(n):
@@ -32,15 +33,10 @@ def ddpg(n, agent, env, n_ep=1000, max_t=700):
 		scores_deque.append(score)
 		scores_list.append(score)
 
+		if i % save_every == 0:
+			torch.save(agent.actor_local.state_dict(), f'ckpt_actor_{i}.pth')
+			torch.save(agent.critic_local.state_dict(), f'ckpt_critic_{i}.pth')
+
 		print('\rEpisode {}\tAverage Score: {:.2f}\tScore: {:.2f}'.format(i, np.mean(scores_deque), score))
-
-		if i % 100 == 0:
-			print('\rEpisode {}\tAverage Score: {:.2f}'.format(i, np.mean(scores_deque)))
-
-		"""
-		if np.mean(scores_deque)>=0.5:
-			print('\\nEnvironment solved in {:d} episodes!\\tAverage Score: {:.2f}'.format(i_episode-100, np.mean(scores_deque)))
-			torch.save(agent.actor_local.state_dict(), 'checkpoint_actor.pth')
-			torch.save(agent.critic_local.state_dict(), 'checkpoint_critic.pth')
-        """
+	
 	return scores_list
