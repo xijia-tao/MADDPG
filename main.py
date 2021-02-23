@@ -14,5 +14,6 @@ if __name__ == '__main__':
     for interact in model.execute(DEFAULT_TEST_STEPS):
         if isinstance(interact, np.ndarray):
             results.append(interact)
-        elif isinstance(interact, str):
-            print(interact)
+
+    np.savez('output/video.npz', frames=np.array(results))
+    
