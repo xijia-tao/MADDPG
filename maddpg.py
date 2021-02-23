@@ -6,6 +6,7 @@ from stable_baselines3.common.type_aliases import GymEnv
 from stable_baselines3.td3.policies import TD3Policy
 
 DEFAULT_TIMESTEPS = 10000
+ENV = 'TEST'
 
 class agents: 
     """ A iterator, successively executing the trained model in the given environment
@@ -45,7 +46,7 @@ class agents:
         """
         action, _ = self.__model.predict(self.__obs)
         self.__obs, _, done, _ = self.__env.step(action)
-        self._env.render(), done
+        self.__env.render(mode = 'human' if ENV == 'TEST' else 'rgb_array'), done
 
     def __next__(self) -> Any:
         if self.__next_time_terminate or self.__count >= self.__max_steps > 0:
