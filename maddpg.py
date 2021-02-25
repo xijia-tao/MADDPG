@@ -1,3 +1,4 @@
+from hyper_parameters import td3_parameters
 import gym
 import numpy as np
 from typing import Any, Optional, Tuple, Type, Union
@@ -5,8 +6,7 @@ from stable_baselines3 import TD3
 from stable_baselines3.common.type_aliases import GymEnv
 from stable_baselines3.td3.policies import TD3Policy
 
-DEFAULT_TIMESTEPS = 10000
-ENV = 'TEST'
+EXE_ENV = 'TEST'
 
 class agents: 
     """ A iterator, successively executing the trained model in the given environment
@@ -46,7 +46,7 @@ class agents:
         """
         action, _ = self.__model.predict(self.__obs)
         self.__obs, _, done, _ = self.__env.step(action)
-        self.__env.render(mode = 'human' if ENV == 'TEST' else 'rgb_array'), done
+        self.__env.render(mode = 'human' if EXE_ENV == 'TEST' else 'rgb_array'), done
 
     def __next__(self) -> Any:
         if self.__next_time_terminate or self.__count >= self.__max_steps > 0:
@@ -69,30 +69,41 @@ class agents:
 class maddpg:
     """ Implementation of Multi-agent DDPG (MADDPG)
 
-    The original paper is available at #TODO#
+    The original paper is available at https://arxiv.org/abs/1706.02275v4
     Here, instead of following the existing implementation at https://github.com/openai/maddpg/tree/master/maddpg
     which is basde on TensorFlow, we re-implement the model utilizing Stable-Baseline 3, constructed
     on PyTorch. Meanwhile, the underlying DDPG algorithm are replaced by TD3. 
 
     Args: 
-        #TODO#
+        policy: the actor-critic policy, inherited from TD3Policy, or a string if the policy 
+                has been registered
+        env:    name of the environment
     """
     def __init__(self, 
         policy: Union[str, Type[TD3Policy]],
-        env: Union[GymEnv, str]) -> None:
-        self.__env    = env
-        self.__policy = policy
-        #TODO
-        pass
-
+        env: str
+    ) -> None:
+        self.__env       = env
+        self.__policy    = policy
+        self.__ddpg      = TD3(
+            self.__policy,
+            self.__env,
+            learning_rate   = td3_parameters.LEARNING_RATE,
+            buffer_size     = td3_parameters.BUFFER_SIZE,
+            learning_starts = td3_parameters.LEARNING_STARTS,
+            batch_size      = td3_parameters.BATCH_SIZE,
+            tau             = td3_parameters.TAU,
+            gamma           = td3_parameters.GAMMA,
+            policy_delay    = td3_parameters.POLICY_DELAY,
+            n_episodes_rollout = td3_parameters.N_EPISODES_ROLLOUT)
+            
     def learn(self, total_timesteps = 10000) -> None:
         """ Learn from the environment using the policy
 
         Args
             total_timesteps: learn for how many timesteps
         """
-        #TODO
-        pass
+        self.__ddpg.learn(total_timesteps)
 
     @property
     def env(self) -> GymEnv:
@@ -116,8 +127,7 @@ class maddpg:
             The model's action and the next state
             (used in recurrent policies)
         """
-        #TODO
-        pass
+        return self.__ddpg.predict(observation, deterministic=True)
 
     def execute(self, num_of_step: int) -> agents:
         """ Execute the policy in the environment
