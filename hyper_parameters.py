@@ -35,15 +35,6 @@ class action_adapter:
 
     Args
         converter: the function to convert between action spaces. 
-
-    Example: 
-        `pong_duel_adapter = action_adapter(converter = lambda x: x + 1.5)`
-
-        Since the policy for pong duel is the result from TanH, which ranges in (-1, 1)
-        The action that can be understaned by ma_gym.pong_dule shall be integral values from 
-        [0,1 (UPWARD), 2(DOWNWARD)]. Therefore, by calling pong_duel([[-0.1,0.6], [0.7,0.9]]), the
-        environment can received a Tensor like: 
-        [[1,2], [2,2]] given the batch size is 4
     """
     def __init__(self, converter: Callable[[Tensor], Tensor] = None) -> None:
         self._converter    = converter
@@ -56,4 +47,11 @@ class action_adapter:
         concated = torch.cat(result, 1)
         return concated
 
-pong_duel_adapter = action_adapter(converter = lambda x: int(x+1.5))
+def pond_duel_action_value_converter(t:Tensor) -> Tensor:
+    # $t \in (-1,1)$
+    t = t + 1
+    # $t \in (0,2)$
+    return torch.round(t)
+
+
+pong_duel_adapter = action_adapter(converter = pond_duel_action_value_converter)
