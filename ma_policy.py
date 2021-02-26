@@ -96,7 +96,6 @@ class Actor(nn.Module):
     :param action_dim: dimension of action space (for a single agent)
     :param agent_num: number of agents
     """
-    
     def __init__(self, state_dim: int, action_dim: int, agent_num: int):
         super(Actor, self).__init__()
 
@@ -130,36 +129,31 @@ class Critic(nn.Module):
     This can increase robustness of our policy.
     - A critic is only needed during training.
     """
-
     def __init__(self, state_dim, action_dim, n_agents):
         super(Critic, self).__init__()
+        self._qnn_lst = []
 
-        # Q1 architecture
-        self.l1 = nn.Linear((state_dim + action_dim) * n_agents, 256)
-        self.l2 = nn.Linear(256, 256)
-        self.l3 = nn.Linear(256, 1)
-
-        # Q2 architecture
-        self.l4 = nn.Linear((state_dim + action_dim) * n_agents, 256)
-        self.l5 = nn.Linear(256, 256)
-        self.l6 = nn.Linear(256, 1)
+        for _ in range(n_agents):
+            l1 = nn.Linear((state_dim + action_dim) * n_agents, nn_structure.CRITIC_FC_NODES)
+            l2 = nn.Linear(nn_structure.CRITIC_FC_NODES, nn_structure.CRITIC_FC_NODES)
+            l3 = nn.Linear(nn_structure.CRITIC_FC_NODES, 1)
+            self._qnn_lst.append((l1, l2, l3))
 
     def forward(self, state, action):
         sa = torch.cat([state, action], 1)
+        qs = []
+        for eachNN in self._qnn_lst:
+            eachQ = F.relu(eachNN[0](sa))
+            eachQ = F.relu(eachNN[1](eachQ))
+            eachQ = eachNN[2](eachQ)
+            qs.append(eachQ)
+        # qs: n * (batch_size, 1)
+        return torch.cat(qs, 1)
 
-        q1 = F.relu(self.l1(sa))
-        q1 = F.relu(self.l2(q1))
-        q1 = self.l3(q1)
-
-        q2 = F.relu(self.l4(sa))
-        q2 = F.relu(self.l5(q2))
-        q2 = self.l6(q2)
-        return q1, q2
-
-    def Q1(self, state, action):
-        sa = torch.cat([state, action], 1)
+    # def Q1(self, state, action):
+    #     sa = torch.cat([state, action], 1)
         
-        q1 = F.relu(self.l1(sa))
-        q1 = F.relu(self.l2(q1))
-        q1 = self.l3(q1)
-        return q1
+    #     q1 = F.relu(self.l1(sa))
+    #     q1 = F.relu(self.l2(q1))
+    #     q1 = self.l3(q1)
+    #     return q1

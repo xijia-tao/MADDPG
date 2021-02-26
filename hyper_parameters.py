@@ -20,7 +20,8 @@ class training_paramters(Enum):
     DEFAULT_TEST_STEPS   = 10000
 
 class nn_structure(Enum):
-    ACTOR_FC_NODES = 256
+    ACTOR_FC_NODES  = 256
+    CRITIC_FC_NODES = 256
 
 class action_adapter:
     """ A functional object, adapting the action"S" from policy to what can be accepted by the env
