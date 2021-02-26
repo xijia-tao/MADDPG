@@ -4,6 +4,7 @@ from stable_baselines3.td3.policies import TD3Policy
 from typing import Any, Dict, List, Optional, Type, Union
 import torch as th
 from torch import nn
+import torch.nn.functional as F
 
 from stable_baselines3.common.policies import BasePolicy, ContinuousCritic, register_policy
 from stable_baselines3.common.preprocessing import get_action_dim
@@ -16,6 +17,9 @@ from stable_baselines3.common.torch_layers import (
 )
 from stable_baselines3.common.type_aliases import Schedule
 
+# A multi-agent policy based on TD3 algorithm
+# Paper: https://arxiv.org/abs/1802.09477 (TD3)
+# The code conforms to the (official) implementation: https://github.com/sfujim/TD3
 
 class ma_policy(TD3Policy):
     """
@@ -88,13 +92,68 @@ class ma_policy(TD3Policy):
         pass
 
 
-class Actor():
+class Actor(nn.Module):
+    """
+    Accepts local state information and returns an action
+    :param state_dim: dimension of observation space (for a single agent)
+    :param action_dim: dimension of action space (for a single agent)
+    """
     
-    def __init__(self):
-        pass
+    def __init__(self, state_dim, action_dim):
+        super(Actor, self).__init__()
+
+        self.l1 = nn.Linear(state_dim, 256)
+        self.l2 = nn.Linear(256, 256)
+        self.l3 = nn.Linear(256, action_dim)
+
+    def forward(self, state):
+        a = F.relu(self.l1(state))
+        a = F.relu(self.l2(a))
+        return th.tanh(self.l3(a))
 
 
-class Critic(ContinuousCritic):
+class Critic(nn.Module):
+    """
+    Accepts global information (state & action) 
+    and returns 2 Q values that rate the action
+    :param state_dim: dimension of observation space (for a single agent)
+    :param action_dim: dimension of action space (for a single agent)
 
-    def __init__(self):
-        pass
+    Remark:
+    - The design of multiple Q functions conforms to TD3 algorithm.
+    This can increase robustness of our policy.
+    - A critic is only needed during training.
+    """
+
+    def __init__(self, state_dim, action_dim, n_agents):
+        super(Critic, self).__init__()
+
+        # Q1 architecture
+        self.l1 = nn.Linear((state_dim + action_dim) * n_agents, 256)
+        self.l2 = nn.Linear(256, 256)
+        self.l3 = nn.Linear(256, 1)
+
+        # Q2 architecture
+        self.l4 = nn.Linear((state_dim + action_dim) * n_agents, 256)
+        self.l5 = nn.Linear(256, 256)
+        self.l6 = nn.Linear(256, 1)
+
+    def forward(self, state, action):
+        sa = th.cat([state, action], 1)
+
+        q1 = F.relu(self.l1(sa))
+        q1 = F.relu(self.l2(q1))
+        q1 = self.l3(q1)
+
+        q2 = F.relu(self.l4(sa))
+        q2 = F.relu(self.l5(q2))
+        q2 = self.l6(q2)
+        return q1, q2
+
+    def Q1(self, state, action):
+		sa = torch.cat([state, action], 1)
+
+		q1 = F.relu(self.l1(sa))
+		q1 = F.relu(self.l2(q1))
+		q1 = self.l3(q1)
+		return q1
