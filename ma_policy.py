@@ -1,7 +1,9 @@
+from hyper_parameters import nn_structure, pong_duel_adapter
 import gym
 from stable_baselines3.td3.policies import TD3Policy
 
 from typing import Any, Dict, List, Optional, Type, Union
+import torch
 import torch as th
 from torch import nn
 import torch.nn.functional as F
@@ -75,11 +77,11 @@ class ma_policy(TD3Policy):
         #TODO: Reimplement / leave as it is
         pass
 
-    def make_actor(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> Actor:
+    def make_actor(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> "Actor":
         #TODO: Return an Actor instance
         pass
 
-    def make_critic(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> Critic:
+    def make_critic(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> "Critic":
         #TODO: Return an Critic instance
         pass
 
@@ -97,20 +99,28 @@ class Actor(nn.Module):
     Accepts local state information and returns an action
     :param state_dim: dimension of observation space (for a single agent)
     :param action_dim: dimension of action space (for a single agent)
+    :param agent_num: number of agents
     """
     
-    def __init__(self, state_dim, action_dim):
+    def __init__(self, state_dim: int, action_dim: int, agent_num: int):
         super(Actor, self).__init__()
 
-        self.l1 = nn.Linear(state_dim, 256)
-        self.l2 = nn.Linear(256, 256)
-        self.l3 = nn.Linear(256, action_dim)
+        self._nn_list   = [] # list of agents, _nn_list[i] => actor for agent[i]
+
+        for _ in range(agent_num):
+            l1 = nn.Linear(state_dim, nn_structure.ACTOR_FC_NODES)
+            l2 = nn.Linear(nn_structure.ACTOR_FC_NODES, nn_structure.ACTOR_FC_NODES)
+            l3 = nn.Linear(nn_structure.ACTOR_FC_NODES, action_dim)
+            self._nn_list.append((l1, l2, l3))
 
     def forward(self, state):
-        a = F.relu(self.l1(state))
-        a = F.relu(self.l2(a))
-        return th.tanh(self.l3(a))
-
+        action_result = []
+        for layers in self._nn_list:
+            a = F.relu(layers[0](state))
+            a = F.relu(layers[1](a))
+            action_result.append(th.tanh(layers[2](a)))
+        
+        return pong_duel_adapter(action_result) #TODO: test it
 
 class Critic(nn.Module):
     """
@@ -151,9 +161,9 @@ class Critic(nn.Module):
         return q1, q2
 
     def Q1(self, state, action):
-		sa = torch.cat([state, action], 1)
-
-		q1 = F.relu(self.l1(sa))
-		q1 = F.relu(self.l2(q1))
-		q1 = self.l3(q1)
-		return q1
+        sa = torch.cat([state, action], 1)
+        
+        q1 = F.relu(self.l1(sa))
+        q1 = F.relu(self.l2(q1))
+        q1 = self.l3(q1)
+        return q1

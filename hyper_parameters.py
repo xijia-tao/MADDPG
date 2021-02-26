@@ -1,4 +1,7 @@
 from enum import Enum
+from typing import Callable, List
+import torch
+from torch import Tensor
 
 class td3_parameters(Enum):
     LEARNING_RATE       = 0.001
@@ -15,3 +18,42 @@ class training_paramters(Enum):
     MULTI_AGENT_ENV_NAME = "PongDuel-v0"
     DEFAULT_LEARN_STEPS  = 10000
     DEFAULT_TEST_STEPS   = 10000
+
+class nn_structure(Enum):
+    ACTOR_FC_NODES = 256
+
+class action_adapter:
+    """ A functional object, adapting the action"S" from policy to what can be accepted by the env
+
+    When calling the object, the input list of actions of shape (batch_size, action_dim) will be 
+    concatenated to a single tensor of shape (batch_size, action_dim * n), where n is the len of
+    the input list, i.e. the number of agents. 
+    
+    Meanwhile, the object will as well call the converter which shall be a function from Tensor to
+    Tensor, to convert the action from the policy output to the range that can be accepted by the
+    environment FOR EACH AGENT's action. The converter MAY change the dimension of action. 
+
+    Args
+        converter: the function to convert between action spaces. 
+
+    Example: 
+        `pong_duel_adapter = action_adapter(converter = lambda x: x + 1.5)`
+
+        Since the policy for pong duel is the result from TanH, which ranges in (-1, 1)
+        The action that can be understaned by ma_gym.pong_dule shall be integral values from 
+        [0,1 (UPWARD), 2(DOWNWARD)]. Therefore, by calling pong_duel([[-0.1,0.6], [0.7,0.9]]), the
+        environment can received a Tensor like: 
+        [[1,2], [2,2]] given the batch size is 4
+    """
+    def __init__(self, converter: Callable[[Tensor], Tensor] = None) -> None:
+        self._converter    = converter
+
+    def __call__(self, input: List[Tensor]) -> Tensor:
+        result = []
+        for each in input:
+            result.append(self._converter(each) if self._converter is not None else each)
+
+        concated = torch.cat(result, 1)
+        return concated
+
+pong_duel_adapter = action_adapter(converter = lambda x: int(x+1.5))
