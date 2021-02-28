@@ -113,7 +113,7 @@ class maddpg:
             the iteractive GYM environment
         """
         if isinstance(self.__env, str):
-            return gym.make(self._env)
+            return gym.make(self.__env)
         return self.__env
 
     def predict(self, observation: np.ndarray) -> Tuple[np.ndarray, Optional[np.ndarray]]:

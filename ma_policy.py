@@ -1,12 +1,12 @@
 from hyper_parameters import nn_structure, pong_duel_adapter
-import gym
-from stable_baselines3.td3.policies import TD3Policy
 
-from typing import Any, Dict, List, Optional, Type, Union
 import torch
-import torch as th
 from torch import nn
 import torch.nn.functional as F
+from stable_baselines3.td3.policies import TD3Policy
+import gym
+from copy import deepcopy
+from typing import Any, Dict, List, Optional, Type, Union
 
 from stable_baselines3.common.policies import BasePolicy, ContinuousCritic, register_policy
 from stable_baselines3.common.preprocessing import get_action_dim
@@ -33,21 +33,25 @@ class ma_policy(TD3Policy):
     :param n_agents: Number of agents in the environment
     """
 
-    def __init__(self,
-                 observation_space: gym.spaces.Space,
-                 action_space: gym.spaces.Space,
-                 lr_schedule: Schedule,
-                 net_arch: Optional[Union[List[int], Dict[str, List[int]]]] = None,
-                 activation_fn: Type[nn.Module] = nn.ReLU,
-                 features_extractor_class: Type[BaseFeaturesExtractor] = FlattenExtractor,
-                 features_extractor_kwargs: Optional[Dict[str, Any]] = None,
-                 normalize_images: bool = True,
-                 optimizer_class: Type[th.optim.Optimizer] = th.optim.Adam,
-                 optimizer_kwargs: Optional[Dict[str, Any]] = None,
-                 n_critics: int = 2,
-                 share_features_extractor: bool = True,
-                 n_agents: int = 2,
-                 ):
+    def __init__(
+        self,
+        state_dim: int,
+        action_dim: int,
+        agent_num: int,
+        observation_space: gym.spaces.Space,
+        action_space: gym.spaces.Space,
+        lr_schedule: Schedule,
+        net_arch: Optional[Union[List[int], Dict[str, List[int]]]] = None,
+        activation_fn: Type[nn.Module] = nn.ReLU,
+        features_extractor_class: Type[BaseFeaturesExtractor] = FlattenExtractor,
+        features_extractor_kwargs: Optional[Dict[str, Any]] = None,
+        normalize_images: bool = True,
+        optimizer_class: Type[torch.optim.Optimizer] = torch.optim.Adam,
+        optimizer_kwargs: Optional[Dict[str, Any]] = None,
+        n_critics: int = 2,
+        share_features_extractor: bool = True,
+        ):
+
         super(ma_policy, self).__init__(
             observation_space,
             action_space,
@@ -62,37 +66,28 @@ class ma_policy(TD3Policy):
             n_critics,
             share_features_extractor,
         )
-        self.n_agents = n_agents
 
-        #TODO: Design network architecture, args
-        #TODO: Initialize AC & their target networks
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+        self.agent_num = agent_num
 
-        self._build(lr_schedule)
+        self.actor, self.actor_target = None, None
+        self.critic, self.critic_target = None, None
 
-    def _build(self, lr_schedule: Schedule) -> None:
-        #TODO: Create AC & their target networks
-        pass
+        self._build()
 
-    def _get_data(self) -> Dict[str, Any]:
-        #TODO: Reimplement / leave as it is
-        pass
+    def _build(self) -> None:
+        self.actor = self.make_actor()
+        self.actor_target = deepcopy(self.actor)
+        
+        self.critic = self.make_critic()
+        self.critic_target = deepcopy(self.critic)
 
-    def make_actor(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> "Actor":
-        #TODO: Return an Actor instance
-        pass
+    def make_actor(self) -> "Actor":
+        return Actor(self.state_dim, self.action_dim, self.agent_num)
 
     def make_critic(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> "Critic":
-        #TODO: Return an Critic instance
-        pass
-
-    def _predict(self, observation: th.Tensor, deterministic: bool = False) -> th.Tensor:
-        #TODO: Feed observation to actor
-        pass
-
-    def forward(self, observation: th.Tensor, deterministic: bool = False) -> th.Tensor:
-        #TODO: Should be same as _predict
-        pass
-
+        return Critic(self.state_dim, self.action_dim, self.agent_num)
 
 class Actor(nn.Module):
     """
@@ -105,7 +100,7 @@ class Actor(nn.Module):
     def __init__(self, state_dim: int, action_dim: int, agent_num: int):
         super(Actor, self).__init__()
 
-        self._nn_list   = [] # list of agents, _nn_list[i] => actor for agent[i]
+        self._nn_list = [] # list of agents, _nn_list[i] => actor for agent[i]
 
         for _ in range(agent_num):
             l1 = nn.Linear(state_dim, nn_structure.ACTOR_FC_NODES)
@@ -118,9 +113,10 @@ class Actor(nn.Module):
         for layers in self._nn_list:
             a = F.relu(layers[0](state))
             a = F.relu(layers[1](a))
-            action_result.append(th.tanh(layers[2](a)))
+            action_result.append(torch.tanh(layers[2](a)))
         
         return pong_duel_adapter(action_result) #TODO: test it
+
 
 class Critic(nn.Module):
     """
@@ -149,7 +145,7 @@ class Critic(nn.Module):
         self.l6 = nn.Linear(256, 1)
 
     def forward(self, state, action):
-        sa = th.cat([state, action], 1)
+        sa = torch.cat([state, action], 1)
 
         q1 = F.relu(self.l1(sa))
         q1 = F.relu(self.l2(q1))
