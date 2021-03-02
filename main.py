@@ -6,7 +6,7 @@ from maddpg import maddpg
 
 
 if __name__ == '__main__':
-    model = maddpg(ma_policy, training_paramters.MULTI_AGENT_ENV_NAME)
+    model = maddpg(ma_policy, "PongDuel-v0")
     model.learn(training_paramters.DEFAULT_LEARN_STEPS)
 
     results = []

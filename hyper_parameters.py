@@ -18,7 +18,6 @@ class td3_parameters(Enum):
     POLICY_DELAY        = 2
 
 class training_paramters(Enum):
-    MULTI_AGENT_ENV_NAME = gym.make("PongDuel-v0")
     DEFAULT_LEARN_STEPS  = 10000
     DEFAULT_TEST_STEPS   = 10000
 
