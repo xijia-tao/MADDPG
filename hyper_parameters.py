@@ -3,6 +3,9 @@ from typing import Callable, List
 import torch
 from torch import Tensor
 
+import gym
+import ma_gym
+
 class td3_parameters(Enum):
     LEARNING_RATE       = 0.001
     BUFFER_SIZE         = 100000
@@ -15,7 +18,7 @@ class td3_parameters(Enum):
     POLICY_DELAY        = 2
 
 class training_paramters(Enum):
-    MULTI_AGENT_ENV_NAME = "PongDuel-v0"
+    MULTI_AGENT_ENV_NAME = gym.make("PongDuel-v0")
     DEFAULT_LEARN_STEPS  = 10000
     DEFAULT_TEST_STEPS   = 10000
 
