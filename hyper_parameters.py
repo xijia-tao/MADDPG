@@ -3,9 +3,6 @@ from typing import Callable, List
 import torch
 from torch import Tensor
 
-import gym
-import ma_gym
-
 class td3_parameters(Enum):
     LEARNING_RATE       = 0.001
     BUFFER_SIZE         = 100000
