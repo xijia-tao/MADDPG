@@ -1,4 +1,4 @@
-from hyper_parameters import td3_parameters
+from hyper_parameters import td3_parameters, env_wrapper
 import gym
 import numpy as np
 from typing import Any, Optional, Tuple, Type, Union
@@ -9,7 +9,8 @@ from stable_baselines3.td3.policies import TD3Policy
 EXE_ENV = 'TEST'
 
 class agents: 
-    """ A iterator, successively executing the trained model in the given environment
+    """ 
+    A iterator, successively executing the trained model in the given environment
 
     This class is implemented as an ITERATOR. It will iterate until the agents in the environment 
     complete their iteration thoroughouly. For each iteration step, it utilizes the input model
@@ -38,7 +39,8 @@ class agents:
 
 
     def _iteract(self) -> Tuple[Any, bool]: 
-        """ Predict for the next action, and then with the action interact with the environment
+        """ 
+        Predict for the next action, and then with the action interact with the environment
 
         Returns: 
             The result after the iteraction, and
@@ -67,7 +69,8 @@ class agents:
         return self
 
 class maddpg:
-    """ Implementation of Multi-agent DDPG (MADDPG)
+    """ 
+    Implementation of Multi-agent DDPG (MADDPG)
 
     The original paper is available at https://arxiv.org/abs/1706.02275v4
     Here, instead of following the existing implementation at https://github.com/openai/maddpg/tree/master/maddpg
@@ -83,7 +86,7 @@ class maddpg:
         policy: Union[str, Type[TD3Policy]],
         env: str
     ) -> None:
-        self.__env       = env
+        self.__env       = self.get_env(env)
         self.__policy    = policy
         self.__ddpg      = TD3(
             self.__policy,
@@ -98,23 +101,25 @@ class maddpg:
             n_episodes_rollout = td3_parameters.N_EPISODES_ROLLOUT)
             
     def learn(self, total_timesteps = 10000) -> None:
-        """ Learn from the environment using the policy
+        """ 
+        Learn from the environment using the policy
 
         Args
             total_timesteps: learn for how many timesteps
         """
         self.__ddpg.learn(total_timesteps)
 
-    @property
-    def env(self) -> GymEnv:
-        """ Get the underlying environment for the model
+    def get_env(self, env):
+        """ 
+        Get & wrap the underlying environment for the model
 
         Returns: 
-            the iteractive GYM environment
+            A wrapper of ma-gym environment that is compatible 
+            with the stable-baselines3 algorithms
         """
-        if isinstance(self.__env, str):
-            return gym.make(self.__env)
-        return self.__env
+        if isinstance(env, str):
+            return env_wrapper(env)
+        return env
 
     def predict(self, observation: np.ndarray) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         """
@@ -130,7 +135,8 @@ class maddpg:
         return self.__ddpg.predict(observation, deterministic=True)
 
     def execute(self, num_of_step: int) -> agents:
-        """ Execute the policy in the environment
+        """ 
+        Execute the policy in the environment
         
         Get a iterator over the environment, which continuously instructs all the agents to
         interacts with the environment. 

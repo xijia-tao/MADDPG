@@ -1,7 +1,12 @@
 from enum import Enum
 from typing import Callable, List
+from itertools import chain 
+
 import torch
 from torch import Tensor
+import gym
+import ma_gym
+import numpy as np
 
 class td3_parameters(Enum):
     LEARNING_RATE       = 0.001
@@ -14,13 +19,53 @@ class td3_parameters(Enum):
     N_EPISODES_ROLLOUT  = 1
     POLICY_DELAY        = 2
 
+
 class training_paramters(Enum):
     DEFAULT_LEARN_STEPS  = 10000
     DEFAULT_TEST_STEPS   = 10000
 
+
 class nn_structure(Enum):
     ACTOR_FC_NODES  = 256
     CRITIC_FC_NODES = 256
+
+
+class env_wrapper:
+    """
+    A wrapper for ma-gym environments
+
+    Args:
+        env: name of the ma-gym environment (str)
+
+    - Compatible with observation space of high dimension
+    - Assume the type of observation space is gym.spaces.Box 
+      (more types can be added at a later stage)
+    - Assume discrete action space
+      (can add supports for continuous one at a later stage)
+    
+    Implemented:
+        - Addressed the attribute error with the original observation space of ma-gym
+          by "concatenating" the first dimensions
+    TODO:
+        - Process action space
+        - Add `reward range` attribute
+        - Other necessary attributes of ma-gym env
+    """
+    def __init__(self, env: str):
+        env = gym.make(env)
+        self.agent_num = len(env.action_space)
+        self.observation_space_ = env.observation_space[0]
+        self.observation_space = self.wrap()
+        self.action_space = env.action_space
+
+    def wrap(self):
+        obs_shape = self.observation_space_.shape
+        obs_shape_ = [obs_shape[i]*self.agent_num if i == 0 else obs_shape[i] for i in range(len(obs_shape))]
+        obs_shape_ = tuple(obs_shape_)
+        obs_low = np.array(self.observation_space_.low).flatten()[0]
+        obs_high = np.array(self.observation_space_.high).flatten()[0]
+        return gym.spaces.Box(obs_low, obs_high, obs_shape_)
+
 
 class action_adapter:
     """ A functional object, adapting the action"S" from policy to what can be accepted by the env
@@ -46,6 +91,7 @@ class action_adapter:
 
         concated = torch.cat(result, 1)
         return concated
+
 
 def pond_duel_action_value_converter(t:Tensor) -> Tensor:
     # $t \in (-1,1)$
