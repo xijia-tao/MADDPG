@@ -44,27 +44,37 @@ class env_wrapper:
       (can add supports for continuous one at a later stage)
     
     Implemented:
-        - Addressed the attribute error with the original observation space of ma-gym
-          by "concatenating" the first dimensions
-    TODO:
-        - Process action space
-        - Add `reward range` attribute
-        - Other necessary attributes of ma-gym env
+        - Addressed the attribute error with the original observation space 
+          of ma-gym by "concatenating" the first dimensions
+        - Convert discrete action space to continuous one. 
+        - Add reward_range & metadata attributes
     """
     def __init__(self, env: str):
         env = gym.make(env)
-        self.agent_num = len(env.action_space)
-        self.observation_space_ = env.observation_space[0]
-        self.observation_space = self.wrap()
-        self.action_space = env.action_space
 
-    def wrap(self):
+        self.agent_num = len(env.action_space)
+
+        self.observation_space_ = env.observation_space[0]
+        self.observation_space = self.wrap_obs()
+
+        self.action_space_ = env.action_space[0]
+        self.action_space = self.wrap_act()
+
+        self.reward_range = env.reward_range
+        self.metadata = env.metadata
+
+    def wrap_obs(self):
         obs_shape = self.observation_space_.shape
         obs_shape_ = [obs_shape[i]*self.agent_num if i == 0 else obs_shape[i] for i in range(len(obs_shape))]
         obs_shape_ = tuple(obs_shape_)
         obs_low = np.array(self.observation_space_.low).flatten()[0]
         obs_high = np.array(self.observation_space_.high).flatten()[0]
+
         return gym.spaces.Box(obs_low, obs_high, obs_shape_)
+
+    def wrap_act(self):
+        act_num = self.action_space_.n
+        return gym.spaces.Box(-0.5, act_num-0.5, (self.agent_num, ))
 
 
 class action_adapter:
@@ -93,11 +103,11 @@ class action_adapter:
         return concated
 
 
-def pond_duel_action_value_converter(t:Tensor) -> Tensor:
+def pong_duel_action_value_converter(t:Tensor) -> Tensor:
     # $t \in (-1,1)$
-    t = t + 1
-    # $t \in (0,2)$
+    t = 1.5*t + 1
+    # $t \in (-0.5, 2.5)$
     return torch.round(t)
 
 
-pong_duel_adapter = action_adapter(converter = pond_duel_action_value_converter)
+pong_duel_adapter = action_adapter(converter = pong_duel_action_value_converter)
