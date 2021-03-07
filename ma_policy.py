@@ -1,4 +1,5 @@
-from hyper_parameters import nn_structure, pong_duel_adapter
+from hyper_parameters import nn_structure
+from utils import pong_duel_adapter
 
 import torch
 from torch import nn
