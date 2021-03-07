@@ -1,4 +1,5 @@
-from hyper_parameters import td3_parameters, env_wrapper
+# from hyper_parameters import td3_parameters, env_wrapper
+from hyper_parameters import env_wrapper
 import gym
 import numpy as np
 from typing import Any, Optional, Tuple, Type, Union
@@ -7,6 +8,16 @@ from stable_baselines3.common.type_aliases import GymEnv
 from stable_baselines3.td3.policies import TD3Policy
 
 EXE_ENV = 'TEST'
+
+LEARNING_RATE       = 0.001
+BUFFER_SIZE         = 100000
+LEARNING_STARTS     = 100
+BATCH_SIZE          = 100
+TAU                 = 0.005
+GAMMA               = 0.99
+GRADIENT_STEPS      = -1 #DISABLE
+N_EPISODES_ROLLOUT  = 1
+POLICY_DELAY        = 2
 
 class agents: 
     """ 
@@ -91,14 +102,15 @@ class maddpg:
         self.__ddpg      = TD3(
             self.__policy,
             self.__env,
-            learning_rate   = td3_parameters.LEARNING_RATE,
-            buffer_size     = td3_parameters.BUFFER_SIZE,
-            learning_starts = td3_parameters.LEARNING_STARTS,
-            batch_size      = td3_parameters.BATCH_SIZE,
-            tau             = td3_parameters.TAU,
-            gamma           = td3_parameters.GAMMA,
-            policy_delay    = td3_parameters.POLICY_DELAY,
-            n_episodes_rollout = td3_parameters.N_EPISODES_ROLLOUT)
+            learning_rate   = LEARNING_RATE,
+            buffer_size     = BUFFER_SIZE,
+            learning_starts = LEARNING_STARTS,
+            batch_size      = BATCH_SIZE,
+            tau             = TAU,
+            gamma           = GAMMA,
+            policy_delay    = POLICY_DELAY,
+            n_episodes_rollout = N_EPISODES_ROLLOUT
+        )
             
     def learn(self, total_timesteps = 10000) -> None:
         """ 
