@@ -59,7 +59,22 @@ class env_wrapper:
         return gym.spaces.Box(-0.5, act_num-0.5, (self.agent_num, ))
 
     def reset(self, **kwargs):
-        return self.env.reset()
+        states_ = self.env.reset()
+        states = []
+        for state in states_:
+            states.extend(state)
+        return states
+
+    def step(self, actions):
+        if type(actions) != Tensor:
+            # round randomly sampled actions from action space
+            actions = [round(action) for action in actions] 
+
+        states_, rewards, dones, info = self.env.step(actions)
+        states = []
+        for state in states_:
+            states.extend(state)
+        return states, rewards, dones, info #TODO
 
 
 class action_adapter:
