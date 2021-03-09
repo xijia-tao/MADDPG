@@ -29,6 +29,7 @@ class env_wrapper:
     """
     def __init__(self, env: str):
         env = gym.make(env)
+        self.env = env
 
         self.agent_num = len(env.action_space)
 
@@ -40,6 +41,9 @@ class env_wrapper:
 
         self.reward_range = env.reward_range
         self.metadata = env.metadata
+        
+        self.state_dim = self.observation_space_.shape[0]
+        self.action_dim = 1 # Discrete
 
     def wrap_obs(self):
         obs_shape = self.observation_space_.shape
@@ -53,6 +57,24 @@ class env_wrapper:
     def wrap_act(self):
         act_num = self.action_space_.n
         return gym.spaces.Box(-0.5, act_num-0.5, (self.agent_num, ))
+
+    def reset(self, **kwargs):
+        states_ = self.env.reset()
+        states = []
+        for state in states_:
+            states.extend(state)
+        return states
+
+    def step(self, actions):
+        if type(actions) != Tensor:
+            # round randomly sampled actions from action space
+            actions = [round(action) for action in actions] 
+
+        states_, rewards, dones, info = self.env.step(actions)
+        states = []
+        for state in states_:
+            states.extend(state)
+        return states, rewards, dones, info #TODO
 
 
 class action_adapter:

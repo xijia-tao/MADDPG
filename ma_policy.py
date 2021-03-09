@@ -20,9 +20,13 @@ from stable_baselines3.common.torch_layers import (
 )
 from stable_baselines3.common.type_aliases import Schedule
 
+ACTOR_FC_NODES  = 256
+CRITIC_FC_NODES = 256
+
 # A multi-agent policy based on TD3 algorithm
 # Paper: https://arxiv.org/abs/1802.09477 (TD3)
 # The code conforms to the (official) implementation: https://github.com/sfujim/TD3
+
 
 class ma_policy(TD3Policy):
     """
@@ -31,14 +35,14 @@ class ma_policy(TD3Policy):
 
     For parameters, 
     see https://github.com/DLR-RM/stable-baselines3/blob/master/stable_baselines3/td3/policies.py
-    :param n_agents: Number of agents in the environment
+    
+    :param state_dim: dimension of observation space (for a single agent)
+    :param action_dim: dimension of action space (for a single agent)
+    :param agent_num: number of agents
     """
 
     def __init__(
         self,
-        state_dim: int,
-        action_dim: int,
-        agent_num: int,
         observation_space: gym.spaces.Space,
         action_space: gym.spaces.Space,
         lr_schedule: Schedule,
@@ -51,6 +55,9 @@ class ma_policy(TD3Policy):
         optimizer_kwargs: Optional[Dict[str, Any]] = None,
         n_critics: int = 2,
         share_features_extractor: bool = True,
+        state_dim: int = 10,
+        action_dim: int = 1,
+        agent_num: int = 2,
         ):
 
         super(ma_policy, self).__init__(
@@ -67,28 +74,33 @@ class ma_policy(TD3Policy):
             n_critics,
             share_features_extractor,
         )
-
-        self.state_dim = state_dim
-        self.action_dim = action_dim
-        self.agent_num = agent_num
+        self.actor_kwargs = {
+            "state_dim": state_dim,
+            "action_dim": action_dim,
+            "agent_num": agent_num
+        }
+        self.critic_kwargs = self.actor_kwargs.copy()
 
         self.actor, self.actor_target = None, None
         self.critic, self.critic_target = None, None
 
-        self._build()
+        self.build(lr_schedule)
 
-    def _build(self) -> None:
-        self.actor = self.make_actor()
+    def build(self, lr_schedule: Schedule) -> None:
+        self.actor = self.make_actor_()
         self.actor_target = deepcopy(self.actor)
+        self.actor.optimizer = self.optimizer_class(self.actor.parameters(), lr=lr_schedule(1))
         
-        self.critic = self.make_critic()
+        self.critic = self.make_critic_()
         self.critic_target = deepcopy(self.critic)
+        self.critic.optimizer = self.optimizer_class(self.critic.parameters(), lr=lr_schedule(1))
 
-    def make_actor(self) -> "Actor":
-        return Actor(self.state_dim, self.action_dim, self.agent_num)
+    def make_actor_(self) -> "Actor":
+        return Actor(**self.actor_kwargs)
 
-    def make_critic(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> "Critic":
-        return Critic(self.state_dim, self.action_dim, self.agent_num)
+    def make_critic_(self) -> "Critic":
+        return Critic(**self.critic_kwargs)
+
 
 class Actor(nn.Module):
     """
@@ -100,13 +112,15 @@ class Actor(nn.Module):
     def __init__(self, state_dim: int, action_dim: int, agent_num: int):
         super(Actor, self).__init__()
 
-        self._nn_list = [] # list of agents, _nn_list[i] => actor for agent[i]
+        self._nn_list = nn.ModuleList() # list of agents, _nn_list[i] => actor for agent[i]
 
         for _ in range(agent_num):
-            l1 = nn.Linear(state_dim, nn_structure.ACTOR_FC_NODES)
-            l2 = nn.Linear(nn_structure.ACTOR_FC_NODES, nn_structure.ACTOR_FC_NODES)
-            l3 = nn.Linear(nn_structure.ACTOR_FC_NODES, action_dim)
-            self._nn_list.append((l1, l2, l3))
+            actor_i = nn.ModuleList()
+            l1 = nn.Linear(state_dim, ACTOR_FC_NODES)
+            l2 = nn.Linear(ACTOR_FC_NODES, ACTOR_FC_NODES)
+            l3 = nn.Linear(ACTOR_FC_NODES, action_dim)
+            actor_i.extend([l1, l2, l3])
+            self._nn_list.append(actor_i)
 
     def forward(self, state):
         action_result = []
@@ -130,15 +144,18 @@ class Critic(nn.Module):
     This can increase robustness of our policy.
     - A critic is only needed during training.
     """
-    def __init__(self, state_dim, action_dim, n_agents):
+    def __init__(self, state_dim, action_dim, agent_num):
         super(Critic, self).__init__()
-        self._qnn_lst = []
 
-        for _ in range(n_agents):
-            l1 = nn.Linear((state_dim + action_dim) * n_agents, nn_structure.CRITIC_FC_NODES)
-            l2 = nn.Linear(nn_structure.CRITIC_FC_NODES, nn_structure.CRITIC_FC_NODES)
-            l3 = nn.Linear(nn_structure.CRITIC_FC_NODES, 1)
-            self._qnn_lst.append((l1, l2, l3))
+        self._qnn_lst = nn.ModuleList()
+
+        for _ in range(agent_num):
+            critic_i = nn.ModuleList()
+            l1 = nn.Linear((state_dim + action_dim) * agent_num, CRITIC_FC_NODES)
+            l2 = nn.Linear(CRITIC_FC_NODES, CRITIC_FC_NODES)
+            l3 = nn.Linear(CRITIC_FC_NODES, 1)
+            critic_i.extend([l1, l2, l3])
+            self._qnn_lst.append(critic_i)
 
     def forward(self, state, action):
         sa = torch.cat([state, action], 1)
@@ -150,11 +167,3 @@ class Critic(nn.Module):
             qs.append(eachQ)
         # qs: n * (batch_size, 1)
         return torch.cat(qs, 1)
-
-    # def Q1(self, state, action):
-    #     sa = torch.cat([state, action], 1)
-        
-    #     q1 = F.relu(self.l1(sa))
-    #     q1 = F.relu(self.l2(q1))
-    #     q1 = self.l3(q1)
-    #     return q1
