@@ -41,6 +41,9 @@ class env_wrapper:
         self.reward_range = env.reward_range
         self.metadata = env.metadata
 
+        self.state_dim = self.observation_space_.shape[0]
+        self.action_dim = 1 # Discrete
+
     def wrap_obs(self):
         obs_shape = self.observation_space_.shape
         obs_shape_ = [obs_shape[i]*self.agent_num if i == 0 else obs_shape[i] for i in range(len(obs_shape))]

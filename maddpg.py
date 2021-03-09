@@ -97,7 +97,9 @@ class maddpg:
         policy: Union[str, Type[TD3Policy]],
         env: str
     ) -> None:
-        self.__env       = self.get_env(env)
+        env = self.get_env(env)
+
+        self.__env       = env
         self.__policy    = policy
         self.__ddpg      = TD3(
             self.__policy,
@@ -109,7 +111,10 @@ class maddpg:
             tau             = TAU,
             gamma           = GAMMA,
             policy_delay    = POLICY_DELAY,
-            n_episodes_rollout = N_EPISODES_ROLLOUT
+            n_episodes_rollout = N_EPISODES_ROLLOUT,
+            policy_kwargs   = {"state_dim": env.state_dim, 
+                               "action_dim": env.action_dim, 
+                               "agent_num": env.agent_num}
         )
             
     def learn(self, total_timesteps = 10000) -> None:
