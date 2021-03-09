@@ -12,9 +12,6 @@ from stable_baselines3.common.torch_layers import (
 )
 from stable_baselines3.common.type_aliases import Schedule
 
-ACTOR_FC_NODES  = 256
-CRITIC_FC_NODES = 256
-
 # A multi-agent policy based on TD3 algorithm
 # Paper: https://arxiv.org/abs/1802.09477 (TD3)
 # The code conforms to the (official) implementation: https://github.com/sfujim/TD3
