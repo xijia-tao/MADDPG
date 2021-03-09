@@ -29,6 +29,7 @@ class env_wrapper:
     """
     def __init__(self, env: str):
         env = gym.make(env)
+        self.env = env
 
         self.agent_num = len(env.action_space)
 
@@ -40,7 +41,7 @@ class env_wrapper:
 
         self.reward_range = env.reward_range
         self.metadata = env.metadata
-
+        
         self.state_dim = self.observation_space_.shape[0]
         self.action_dim = 1 # Discrete
 
@@ -56,6 +57,9 @@ class env_wrapper:
     def wrap_act(self):
         act_num = self.action_space_.n
         return gym.spaces.Box(-0.5, act_num-0.5, (self.agent_num, ))
+
+    def reset(self, **kwargs):
+        return self.env.reset()
 
 
 class action_adapter:
