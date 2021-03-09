@@ -1,6 +1,5 @@
 # from hyper_parameters import td3_parameters, env_wrapper
 from utils import env_wrapper
-import gym
 import numpy as np
 from typing import Any, Optional, Tuple, Type, Union
 from stable_baselines3 import TD3
