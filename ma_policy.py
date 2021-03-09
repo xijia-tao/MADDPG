@@ -80,14 +80,42 @@ class ma_policy(TD3Policy):
         pass
 
     def make_actor(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> "ma_actor":
+        """ Create an actor network
+
+        The function will be invoked within super()._build(...) to prepare the actor for the TD3.
+
+        Args: 
+            features_extractor: network layouts for feature extration
+        
+        Returns:
+            An ma_actor, which independently executes multiple actors simultaneously
+        """
         actor_kwargs = self._update_features_extractor(self.actor_kwargs, features_extractor)
         return ma_actor(**actor_kwargs).to(self.device)
 
     def make_critic(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> "ma_critic":
+        """ Createa the critic network
+
+        The function will be invoked within super()._build(...) TWICE: one for creating the Q network
+        and the other for creating the Q-target.
+
+        Args: 
+            features_extractor: network layouts for feature extration
+            
+        Returns:
+            An ma_critic, which runs mutiple Q network simultaneously to create a critic value for 
+            EACH agent. 
+        """
         critic_kwargs = self._update_features_extractor(self.critic_kwargs, features_extractor)
         return ma_critic(**critic_kwargs).to(self.device)
 
 class ma_actor(BasePolicy):
+    """ The multi-agent actor class. 
+
+    The class manipulates one network (which is a td3.policies.Actor object) in the same time, 
+    each of which genearting the action for one corresponding agent. The output are concatenated
+    together to match the required input from the environment. 
+    """
     def __init__(
         self,
         observation_space: spaces.Box,
@@ -99,6 +127,20 @@ class ma_actor(BasePolicy):
         normalize_images: bool = True,
         agent_num: int = 1
     ) -> None:
+        """ Constructor
+
+        Args: 
+            observation_space: Obervation space
+            action_space: Action space
+            net_arch: Network architecture
+            features_extractor: Network to extract features
+                (a CNN when using images, a nn.Flatten() layer otherwise)
+            features_dim: Number of features
+            activation_fn: Activation function
+            normalize_images: Whether to normalize images or not, 
+                dividing by 255.0 (True by default)
+            agent_num: the number of agents
+        """
         super(ma_actor, self).__init__(
             observation_space,
             action_space,
@@ -115,15 +157,46 @@ class ma_actor(BasePolicy):
             self.add_module(f"ag_{idx}", agent_model)
     
     def forward(self, obs: Tensor, deterministic: bool = True) -> Tensor:
+        """ Forwarding the network
+
+        Args: 
+            obs: the observation from the env wrapper, of shape: 
+                (Batch Size, Num Agent, Observation Dim...)
+            deterministic: whether the policy should be determinisitic
+
+        Returns:
+            The actions for all agents, of shape:
+            (Batch Size, Num Agent, Action Dim...)
+        """
         results = []
         for i,agent in enumerate(self._agents):
             results.append(agent.forward(obs[:,i], deterministic)) # first dim is the batch size
-        return torch.stack(results)
+        # results if of list of Tensor of shape(Batch Size, Action Dim...)
+        batch_size = obs.shape[0]
+        num_agent  = len(results)
+        return torch.cat(results, dim=1).reshape(batch_size, num_agent, -1)
 
     def _predict(self, obs: torch.Tensor, deterministic: bool) -> torch.Tensor:
+        """ Get the action according to the policy for a given observation.
+
+        By default provides a dummy implementation -- not all BasePolicy classes
+        implement this, e.g. if they are a Critic in an Actor-Critic method.
+
+        Args:
+            observation:
+            deterministic: Whether to use stochastic or deterministic actions
+            Taken action according to the policy
+        """
         return self.forward(obs, deterministic)
     
     def _get_data(self) -> Dict[str, Any]:
+        """ Get data that need to be saved in order to re-create the model.
+        
+        This corresponds to the arguments of the constructor.
+
+        Returns:
+            A dict for parameters to be stored
+        """
         assert len(self._agents) != 0
         sub_data = self._agents[0]._get_data()
         sub_data.update({
@@ -133,6 +206,11 @@ class ma_actor(BasePolicy):
         
 
 class ma_critic(BaseModel):
+    """ The multi-agent critic class.
+
+    Double Q-learning for multiple-agent scenario. The internal implementation 
+    for each agent is a ContinuousCritic object
+    """
     def __init__(
         self,
         observation_space: spaces.Space,
@@ -146,6 +224,22 @@ class ma_critic(BaseModel):
         share_features_extractor: bool = False,
         agent_num: int = 1
     ):
+        """ Constructor
+
+        Args: 
+        	observation_space: Obervation space
+        	action_space: Action space
+        	net_arch: Network architecture
+        	features_extractor: Network to extract features
+               (a CNN when using images, a nn.Flatten() layer otherwise)
+        	features_dim: Number of features
+        	activation_fn: Activation function
+        	normalize_images: Whether to normalize images or not,
+                dividing by 255.0 (True by default)
+        	n_critics: Number of critic networks to create.
+        	share_features_extractor: Whether the features extractor is shared or not
+                between the actor and the critic (this saves computation time)
+        """
         super().__init__(
             observation_space,
             action_space,
@@ -159,6 +253,18 @@ class ma_critic(BaseModel):
             self.add_module(f"ag_c_{idx}", criticNN)
 
     def forward(self, all_obs: Tensor, all_actions: Tensor):
+        """ Forwarding the network
+
+        Args: 
+            all_obs: the observation from the env wrapper, of shape: 
+                (Batch Size, Num Agent, Observation Dim...)
+            all_actions: The actions for all agents, of shape:
+                (Batch Size, Num Agent, Action Dim...)
+
+        Returns:
+            A list of critics, each of shape: (Batch Size, 1, Num agent)
+            The length of the list matches the n_critics
+        """
         results = [critic.forward(all_obs[:,i], all_actions) for i,critic in enumerate(self._critics)] # first dim is the batch size
         # results is # assume agent_num = 3, num_critic = 2
         # [
@@ -176,7 +282,21 @@ class ma_critic(BaseModel):
         return stacked_results
 
     def q1_forward(self, all_obs: Tensor, all_actions: Tensor) -> Tensor:
-        results = [critic.forward(all_obs[:,i], all_actions) for i,critic in enumerate(self._critics)] # first dim is the batch size
+        """ Only predict the Q-value using the first network.
+
+        This allows to reduce computation when all the estimates are not needed
+        (e.g. when updating the policy in TD3).
+
+        Args: 
+            all_obs: the observation from the env wrapper, of shape: 
+                (Batch Size, Num Agent, Observation Dim...)
+            all_actions: The actions for all agents, of shape:
+                (Batch Size, Num Agent, Action Dim...)
+
+        Returns: 
+            A critic tensor of shape (Batch size, 1, Num Agent)
+        """
+        results = [critic.q1_forward(all_obs[:,i], all_actions) for i,critic in enumerate(self._critics)] # first dim is the batch size
         # results is # assume agent_num = 3, num_critic = 2
         # [
         #    critic for ag_1: (Batch,1)

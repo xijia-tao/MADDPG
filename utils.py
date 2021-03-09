@@ -2,6 +2,7 @@ from torch import Tensor
 import gym
 import ma_gym as _
 import numpy as np
+import torch
 
 
 class env_wrapper:
@@ -43,7 +44,7 @@ class env_wrapper:
 
     def wrap_obs(self):
         obs_shape = self.observation_space_.shape
-        obs_shape_ = [obs_shape[i]*self.agent_num if i == 0 else obs_shape[i] for i in range(len(obs_shape))]
+        obs_shape_ = [self.agent_num if i == -1 else obs_shape[i] for i in range(-1,len(obs_shape))]
         obs_shape_ = tuple(obs_shape_)
         obs_low = np.array(self.observation_space_.low).flatten()[0]
         obs_high = np.array(self.observation_space_.high).flatten()[0]
@@ -52,7 +53,7 @@ class env_wrapper:
 
     def wrap_act(self):
         act_num = self.action_space_.n
-        return gym.spaces.Box(-0.5, act_num-0.5, (self.agent_num, ))
+        return gym.spaces.Box(-0.5, act_num-0.5, (self.agent_num, 1))
 
     def reset(self, **kwargs):
         states_ = self.env.reset()
@@ -62,12 +63,13 @@ class env_wrapper:
         return states
 
     def step(self, actions):
-        if type(actions) != Tensor:
-            # round randomly sampled actions from action space
-            actions = [round(action) for action in actions] 
 
-        states_, rewards, dones, info = self.env.step(actions)
-        states = []
-        for state in states_:
-            states.extend(state)
-        return states, rewards, dones, info #TODO
+        # action is of shape(2, 1), varied within (-1.0, 1,0)
+        actions_int = []
+        with torch.no_grad:
+            actions_int.extends(torch.round(actions * 1.5 + 1).flatten().tolist())
+
+        states, rewards, dones, info = self.env.step(actions_int)
+        # state: list of Tensor(10,), required Tensor(2,10)
+        # rewards: list of int, required Tensor(1,2)
+        return torch.stack(states), torch.Tensor(rewards).reshape(-1, len(rewards)), dones, info
