@@ -1,13 +1,7 @@
-import enum
-from os import stat
-import numpy as np
 from stable_baselines3.common.policies import BaseModel, BasePolicy, ContinuousCritic
-from torch import tensor
-from deprecated.model import Critic
 
 import torch
 from torch import nn, Tensor
-import torch.nn.functional as F
 from stable_baselines3.td3.policies import TD3Policy, Actor as single_actor
 from gym import spaces
 from typing import Any, Callable, Dict, List, Optional, Type, Union
