@@ -5,6 +5,7 @@ from maddpg import maddpg
 DEFAULT_LEARN_STEPS  = 10000
 DEFAULT_TEST_STEPS   = 10000
 ENV_NAMES            = "PongDuel-v0"
+OUTPUT_FRAMES_DIR    = 'output/video.npz'
 
 if __name__ == '__main__':
     model = maddpg(ma_policy, ENV_NAMES)
@@ -17,5 +18,5 @@ if __name__ == '__main__':
             results.append(interact)
 
     if len(results) != 0:
-        np.savez('output/video.npz', frames=np.array(results))
+        np.savez(OUTPUT_FRAMES_DIR, frames=np.array(results))
     
