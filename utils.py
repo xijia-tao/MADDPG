@@ -1,11 +1,8 @@
-from typing import Callable, List
-from itertools import chain 
-
-import torch
 from torch import Tensor
 import gym
-import ma_gym
+import ma_gym as _
 import numpy as np
+import torch
 
 
 class env_wrapper:
@@ -47,7 +44,7 @@ class env_wrapper:
 
     def wrap_obs(self):
         obs_shape = self.observation_space_.shape
-        obs_shape_ = [obs_shape[i]*self.agent_num if i == 0 else obs_shape[i] for i in range(len(obs_shape))]
+        obs_shape_ = [self.agent_num if i == -1 else obs_shape[i] for i in range(-1,len(obs_shape))]
         obs_shape_ = tuple(obs_shape_)
         obs_low = np.array(self.observation_space_.low).flatten()[0]
         obs_high = np.array(self.observation_space_.high).flatten()[0]
@@ -56,7 +53,7 @@ class env_wrapper:
 
     def wrap_act(self):
         act_num = self.action_space_.n
-        return gym.spaces.Box(-0.5, act_num-0.5, (self.agent_num, ))
+        return gym.spaces.Box(-0.5, act_num-0.5, (self.agent_num, 1))
 
     def reset(self, **kwargs):
         states_ = self.env.reset()
@@ -66,48 +63,13 @@ class env_wrapper:
         return states
 
     def step(self, actions):
-        if type(actions) != Tensor:
-            # round randomly sampled actions from action space
-            actions = [round(action) for action in actions] 
 
-        states_, rewards, dones, info = self.env.step(actions)
-        states = []
-        for state in states_:
-            states.extend(state)
-        return states, rewards, dones, info #TODO
+        # action is of shape(2, 1), varied within (-1.0, 1,0)
+        actions_int = []
+        with torch.no_grad:
+            actions_int.extends(torch.round(actions * 1.5 + 1).flatten().tolist())
 
-
-class action_adapter:
-    """ A functional object, adapting the action"S" from policy to what can be accepted by the env
-
-    When calling the object, the input list of actions of shape (batch_size, action_dim) will be 
-    concatenated to a single tensor of shape (batch_size, action_dim * n), where n is the len of
-    the input list, i.e. the number of agents. 
-    
-    Meanwhile, the object will as well call the converter which shall be a function from Tensor to
-    Tensor, to convert the action from the policy output to the range that can be accepted by the
-    environment FOR EACH AGENT's action. The converter MAY change the dimension of action. 
-
-    Args
-        converter: the function to convert between action spaces. 
-    """
-    def __init__(self, converter: Callable[[Tensor], Tensor] = None) -> None:
-        self._converter    = converter
-
-    def __call__(self, input: List[Tensor]) -> Tensor:
-        result = []
-        for each in input:
-            result.append(self._converter(each) if self._converter is not None else each)
-
-        concated = torch.cat(result, 1)
-        return concated
-
-
-def pong_duel_action_value_converter(t:Tensor) -> Tensor:
-    # $t \in (-1,1)$
-    t = 1.5*t + 1
-    # $t \in (-0.5, 2.5)$
-    return torch.round(t)
-
-
-pong_duel_adapter = action_adapter(converter = pong_duel_action_value_converter)
+        states, rewards, dones, info = self.env.step(actions_int)
+        # state: list of Tensor(10,), required Tensor(2,10)
+        # rewards: list of int, required Tensor(1,2)
+        return torch.stack(states), torch.Tensor(rewards).reshape(-1, len(rewards)), dones, info

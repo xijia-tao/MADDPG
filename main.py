@@ -1,13 +1,14 @@
-# from hyper_parameters import training_paramters
 import numpy as np
 from ma_policy import ma_policy
 from maddpg import maddpg
 
 DEFAULT_LEARN_STEPS  = 10000
 DEFAULT_TEST_STEPS   = 10000
+ENV_NAMES            = "PongDuel-v0"
+OUTPUT_FRAMES_DIR    = 'output/video.npz'
 
 if __name__ == '__main__':
-    model = maddpg(ma_policy, "PongDuel-v0")
+    model = maddpg(ma_policy, ENV_NAMES)
     model.learn(DEFAULT_LEARN_STEPS)
 
     results = []
@@ -16,5 +17,6 @@ if __name__ == '__main__':
         if isinstance(interact, np.ndarray):
             results.append(interact)
 
-    np.savez('output/video.npz', frames=np.array(results))
+    if len(results) != 0:
+        np.savez(OUTPUT_FRAMES_DIR, frames=np.array(results))
     
