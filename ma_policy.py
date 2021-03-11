@@ -25,8 +25,6 @@ class ma_policy(TD3Policy):
     For parameters, 
     see https://github.com/DLR-RM/stable-baselines3/blob/master/stable_baselines3/td3/policies.py
     
-    :param state_dim: dimension of observation space (for a single agent)
-    :param action_dim: dimension of action space (for a single agent)
     :param agent_num: number of agents
     """
 
@@ -67,8 +65,8 @@ class ma_policy(TD3Policy):
         extra_kwarg_ = {
             "agent_num": agent_num
         }
-        self.actor_kwargs = self.actor_kwargs.update(extra_kwarg_)
-        self.critic_kwargs = self.critic_kwargs.update(extra_kwarg_)
+        self.actor_kwargs.update(extra_kwarg_)
+        self.critic_kwargs.update(extra_kwarg_)
 
         super()._build(lr_schedule)
 

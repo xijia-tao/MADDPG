@@ -111,9 +111,7 @@ class maddpg:
             gamma           = GAMMA,
             policy_delay    = POLICY_DELAY,
             n_episodes_rollout = N_EPISODES_ROLLOUT,
-            policy_kwargs   = {"state_dim": env.state_dim, 
-                               "action_dim": env.action_dim, 
-                               "agent_num": env.agent_num}
+            policy_kwargs   = {"agent_num": env.agent_num}
         )
             
     def learn(self, total_timesteps = 10000) -> None:
