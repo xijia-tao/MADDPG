@@ -67,7 +67,7 @@ class env_wrapper:
         # action is of shape(2, 1), varied within (-1.0, 1,0)
         actions_int = []
         with torch.no_grad:
-            actions_int.extends(torch.round(actions * 1.5 + 1).flatten().tolist())
+            actions_int.extend(torch.round(actions * 1.5 + 1).flatten().tolist())
 
         states, rewards, dones, info = self.env.step(actions_int)
         # state: list of Tensor(10,), required Tensor(2,10)
