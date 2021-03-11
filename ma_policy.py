@@ -4,6 +4,7 @@ import torch
 from torch import nn, Tensor
 from stable_baselines3.td3.policies import TD3Policy, Actor as single_actor
 from gym import spaces
+import numpy as np
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 
 from stable_baselines3.common.torch_layers import (
@@ -107,6 +108,7 @@ class ma_policy(TD3Policy):
         critic_kwargs = self._update_features_extractor(self.critic_kwargs, features_extractor)
         return ma_critic(**critic_kwargs).to(self.device)
 
+
 class ma_actor(BasePolicy):
     """ The multi-agent actor class. 
 
@@ -146,8 +148,14 @@ class ma_actor(BasePolicy):
             normalize_images=normalize_images,
             squash_output=True,
         )
-        real_observation_space = spaces.Box(observation_space.low, observation_space.high,observation_space.shape[1:])
-        real_action_space      = spaces.Box(action_space.low, action_space.high, action_space[1:])
+
+        obs_low = np.array(observation_space.low).flatten()[0]
+        obs_high = np.array(observation_space.high).flatten()[0]
+        act_low = np.array(action_space.low).flatten()[0]
+        act_high = np.array(action_space.high).flatten()[0]
+        
+        real_observation_space = spaces.Box(obs_low, obs_high, observation_space.shape[1:])
+        real_action_space      = spaces.Box(act_low, act_high, action_space.shape[1:])
 
         self._agents = [single_actor(real_observation_space, real_action_space, net_arch, features_extractor, features_dim, activation_fn, normalize_images) for _ in range(agent_num)]
 
@@ -244,7 +252,10 @@ class ma_critic(BaseModel):
             features_extractor=features_extractor,
             normalize_images=normalize_images,
         )
-        real_observation_space = spaces.Box(observation_space.low, observation_space.high,observation_space.shape[1:])
+
+        obs_low = np.array(observation_space.low).flatten()[0]
+        obs_high = np.array(observation_space.high).flatten()[0]
+        real_observation_space = spaces.Box(obs_low, obs_high, observation_space.shape[1:])
 
         self._critics = [ContinuousCritic(real_observation_space, action_space, net_arch, features_extractor, features_dim, activation_fn, normalize_images, n_critics, share_features_extractor) for _ in range(agent_num)]
         for idx, criticNN in enumerate(self._critics):
