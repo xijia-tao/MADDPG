@@ -1,5 +1,6 @@
 # from hyper_parameters import td3_parameters, env_wrapper
-from utils import env_wrapper
+from utils import VectorizedMultiAgentEnvWrapper
+import gym
 import numpy as np
 from typing import Any, Optional, Tuple, Type, Union
 from stable_baselines3 import TD3
@@ -96,7 +97,7 @@ class maddpg:
         policy: Union[str, Type[TD3Policy]],
         env: str
     ) -> None:
-        env = self.get_env(env)
+        env = self._get_env(env)
 
         self.__env       = env
         self.__policy    = policy
@@ -123,7 +124,8 @@ class maddpg:
         """
         self.__ddpg.learn(total_timesteps)
 
-    def get_env(self, env):
+    @staticmethod
+    def _get_env(env: Union[str, gym.Env]):
         """ 
         Get & wrap the underlying environment for the model
 
@@ -131,9 +133,7 @@ class maddpg:
             A wrapper of ma-gym environment that is compatible 
             with the stable-baselines3 algorithms
         """
-        if isinstance(env, str):
-            return env_wrapper(env)
-        return env
+        return VectorizedMultiAgentEnvWrapper([lambda: env])
 
     def predict(self, observation: np.ndarray) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         """

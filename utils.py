@@ -15,7 +15,7 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
     perform in the compatible way with those models defiend for
     single agent environments. 
     """
-    def __init__(self, env_fns: List[Callable[[], gym.Env]]):
+    def __init__(self, env_fns: List[Callable[[], Union[str, gym.Env]]]):
         """ Constructor
 
         Args:
