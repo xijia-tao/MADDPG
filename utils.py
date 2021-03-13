@@ -1,10 +1,49 @@
-from torch import Tensor
+from typing import Any, Callable, List, Sequence, Tuple, Type, Union
+from collections import OrderedDict
 import gym
 import ma_gym as _
 import numpy as np
+from stable_baselines3.common.type_aliases import GymEnv
 import torch
+from stable_baselines3.common.vec_env.base_vec_env import VecEnv, VecEnvIndices, VecEnvObs, VecEnvStepReturn
+from stable_baselines3.common.vec_env.util import obs_space_info
 
+class MultiAgentEnvWrapper(VecEnv): 
+    """
+    """
+    def __init__(self, env_fns: List[Callable[[], gym.Env]]):
+        """
+        """
+        pass 
 
+    def reset(self) -> VecEnvObs:
+        pass 
+
+    def step_async(self, actions: np.ndarray) -> None:
+        pass 
+
+    def step_wait(self) -> VecEnvStepReturn:
+        pass
+
+    def close(self) -> None:
+        pass
+    def get_attr(self, attr_name: str, indices: VecEnvIndices) -> List[Any]:
+        pass
+    def set_attr(self, attr_name: str, value: Any, indices: VecEnvIndices) -> None:
+        pass
+
+    def env_method(self, method_name: str, *method_args, indices: VecEnvIndices, **method_kwargs) -> List[Any]:
+        pass
+
+    def env_is_wrapped(self, wrapper_class: Type[gym.Wrapper], indices: VecEnvIndices) -> List[bool]:
+        pass
+    
+    def get_images(self) -> Sequence[np.ndarray]:
+        pass
+
+    def render(self, mode: str) -> Optional[np.ndarray]:
+        return super().render(mode=mode)
+    
 class env_wrapper:
     """
     A wrapper for ma-gym environments
@@ -24,8 +63,10 @@ class env_wrapper:
         - Convert discrete action space to continuous one. 
         - Add reward_range & metadata attributes
     """
-    def __init__(self, env: str):
-        env = gym.make(env)
+    def __init__(self, env: Union[str, GymEnv]):
+        if isinstance(env, str):
+            env = gym.make(env)
+
         self.env = env
 
         self.agent_num = len(env.action_space)
