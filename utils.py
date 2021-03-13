@@ -157,7 +157,7 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
             self.metadata = env.metadata
             
             self.state_dim = self.observation_space_.shape[0]
-            self.action_dim = 1 # Discrete
+            self.action_dim = self.action_space_.shape[0]
 
         def _wrap_obs(self):
             obs_shape = self.observation_space_.shape
