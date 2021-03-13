@@ -110,7 +110,7 @@ class maddpg:
             tau             = TAU,
             gamma           = GAMMA,
             policy_delay    = POLICY_DELAY,
-            n_episodes_rollout = N_EPISODES_ROLLOUT,
+            train_freq      = (N_EPISODES_ROLLOUT, 'episode'),
             policy_kwargs   = {"agent_num": env.agent_num}
         )
             

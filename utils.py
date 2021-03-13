@@ -53,23 +53,24 @@ class env_wrapper:
 
     def wrap_act(self):
         act_num = self.action_space_.n
-        return gym.spaces.Box(-0.5, act_num-0.5, (self.agent_num, 1))
+        return gym.spaces.Box(-1, 1, (self.agent_num, 1))
 
     def reset(self, **kwargs):
         states_ = self.env.reset()
         states = []
         for state in states_:
-            states.extend(state)
+            states.append(state)
         return states
 
     def step(self, actions):
-
+        actions = Tensor(actions)
         # action is of shape(2, 1), varied within (-1.0, 1,0)
         actions_int = []
-        with torch.no_grad:
-            actions_int.extend(torch.round(actions * 1.5 + 1).flatten().tolist())
+        ## with torch.no_grad:
+        actions_int.extend(torch.round(actions * 1.5 + 1).flatten().tolist())
 
         states, rewards, dones, info = self.env.step(actions_int)
         # state: list of Tensor(10,), required Tensor(2,10)
         # rewards: list of int, required Tensor(1,2)
-        return torch.stack(states), torch.Tensor(rewards).reshape(-1, len(rewards)), dones, info
+        states = [Tensor(state) for state in states]
+        return torch.stack(states), torch.Tensor(rewards).reshape(-1, len(rewards)), any(dones), info
