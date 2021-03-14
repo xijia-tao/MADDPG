@@ -49,7 +49,7 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
 
     # overriden
     def reset(self) -> VecEnvObs:
-        for env_idx, each_env in enumerate(self.num_envs):
+        for env_idx, each_env in enumerate(self.envs):
             obs = each_env.reset()
             self._save_obs(env_idx, obs)
         return dict_to_obs(self.observation_space, copy_obs_dict(self.buf_obs))
@@ -155,9 +155,6 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
 
             self.reward_range = env.reward_range
             self.metadata = env.metadata
-            
-            self.state_dim = self.observation_space_.shape[0]
-            self.action_dim = self.action_space_.shape[0]
 
         def _wrap_obs(self):
             obs_shape = self.observation_space_.shape
@@ -169,7 +166,7 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
             return gym.spaces.Box(obs_low, obs_high, obs_shape_)
 
         def _wrap_act(self):
-            act_num = self.action_space_.n
+            act_num = 1 # TODO: think of a way to recover the action dim
             return gym.spaces.Box(-1, 1, (self.agent_num, act_num))
 
         def reset(self, **kwargs):
