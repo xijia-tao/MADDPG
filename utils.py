@@ -1,10 +1,12 @@
 from collections import OrderedDict
 import copy
-from typing import Any, Callable, List, Optional, Sequence, Type, Union
 import gym
 import ma_gym as _
 import numpy as np
 import torch
+
+from gym import spaces
+from typing import Any, Callable, List, Optional, Sequence, Type, Union
 from stable_baselines3.common.vec_env.base_vec_env import VecEnv, VecEnvIndices, VecEnvObs, VecEnvStepReturn
 from stable_baselines3.common.vec_env.util import copy_obs_dict, obs_space_info, dict_to_obs
 
@@ -166,8 +168,16 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
             return gym.spaces.Box(obs_low, obs_high, obs_shape_)
 
         def _wrap_act(self):
-            act_num = 1 # TODO: think of a way to recover the action dim
-            return gym.spaces.Box(-1, 1, (self.agent_num, act_num))
+            # calculate the action dimension
+            if isinstance(self.action_space_, spaces.Discrete):
+                act_num = (1,) # Discrete => ONE
+            elif isinstance(self.action_space_, spaces.Box):
+                act_num = self.action_space_.shape
+            elif isinstance(self.action_space_, list):
+                act_num = (len(self.action_space_),) + self.action_space_[0].shape if isinstance(self.action_space_[0], spaces.Box) else (len(self.action_space_), 1) 
+            else:
+                act_num = (1,) # DEFAULT
+            return gym.spaces.Box(-1, 1, (self.agent_num,)+act_num)
 
         def reset(self, **kwargs):
             states_ = self.env.reset(kwargs)
