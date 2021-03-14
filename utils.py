@@ -72,7 +72,7 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
                 self.buf_infos[idx]["terminal_observation"] = obs
                 obs = self.envs[idx].reset()
             self._save_obs(idx, obs)
-        return (self._obs_from_buf(), np.copy(self.buf_rews), np.copy(self.buf_dones), copy.deepcopy(self.buf_infos))
+        return (dict_to_obs(self.observation_space, copy_obs_dict(self.buf_obs)), np.copy(self.buf_rews), np.copy(self.buf_dones), copy.deepcopy(self.buf_infos))
 
     # overriden
     def close(self) -> None:
