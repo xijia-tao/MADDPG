@@ -25,7 +25,6 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
         env = self.envs[0]
         VecEnv.__init__(self, len(env_fns), env.observation_space, env.action_space)
         obs_space = env.observation_space
-        self.agent_num = env.agent_num
         self.keys, shapes, dtypes = obs_space_info(obs_space)
 
         self.buf_obs = OrderedDict([(k, np.zeros((self.num_envs,) + tuple(shapes[k]), dtype=dtypes[k])) for k in self.keys])
@@ -50,7 +49,7 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
 
     # overriden
     def reset(self) -> VecEnvObs:
-        for env_idx, each_env in enumerate(self.envs):
+        for env_idx, each_env in enumerate(self.num_envs):
             obs = each_env.reset()
             self._save_obs(env_idx, obs)
         return dict_to_obs(self.observation_space, copy_obs_dict(self.buf_obs))
@@ -158,8 +157,7 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
             self.metadata = env.metadata
             
             self.state_dim = self.observation_space_.shape[0]
-            # action_space_: Discrete(3)
-            self.action_dim = 1
+            self.action_dim = self.action_space_.shape[0]
 
         def _wrap_obs(self):
             obs_shape = self.observation_space_.shape
@@ -171,7 +169,7 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
             return gym.spaces.Box(obs_low, obs_high, obs_shape_)
 
         def _wrap_act(self):
-            act_num = 1  # self.action_space_.n
+            act_num = self.action_space_.n
             return gym.spaces.Box(-1, 1, (self.agent_num, act_num))
 
         def reset(self, **kwargs):
