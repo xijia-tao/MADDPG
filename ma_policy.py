@@ -1,3 +1,4 @@
+from numpy.lib.function_base import iterable
 from stable_baselines3.common.policies import BaseModel, BasePolicy, ContinuousCritic
 from stable_baselines3.common.preprocessing import get_flattened_obs_dim
 
@@ -109,6 +110,22 @@ class ma_policy(TD3Policy):
         critic_kwargs = self._update_features_extractor(self.critic_kwargs, features_extractor)
         return ma_critic(**critic_kwargs).to(self.device)
 
+    def unscale_action(self, scaled_action: np.ndarray) -> np.ndarray:
+        low, high = self.action_space.low, self.action_space.high
+        if hasattr(low, "__len__"):
+            low = low[0]
+        if hasattr(high, "__len__"):
+            high = high[0]
+        return low + (0.5 * (scaled_action + 1.0) * (high - low))
+
+    def scale_action(self, action: np.ndarray) -> np.ndarray:
+        low, high = self.action_space.low, self.action_space.high
+        if hasattr(low, "__len__"):
+            low = low[0]
+        if hasattr(high, "__len__"):
+            high = high[0]
+        return 2.0 * ((action - low) / (high - low)) - 1.0
+
 
 class ma_actor(BasePolicy):
     """ The multi-agent actor class. 
@@ -182,8 +199,8 @@ class ma_actor(BasePolicy):
             results.append(agent.forward(obs[:,i])) # first dim is the batch size
         # results if of list of Tensor of shape(Batch Size, Action Dim...)
         batch_size = obs.shape[0]
-        num_agent  = len(results)
-        return torch.cat(results, dim=1).reshape(batch_size, num_agent, -1)
+        else_shape = results[0].shape[1:]
+        return torch.cat(results, dim=1).reshape((batch_size, -1) + else_shape)
 
     def _predict(self, obs: torch.Tensor, deterministic: bool) -> torch.Tensor:
         """ Get the action according to the policy for a given observation.
