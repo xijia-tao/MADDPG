@@ -5,11 +5,31 @@ from env_wrapper import VectorizedMultiAgentEnvWrapper
 from gym import spaces
 from stable_baselines3.common.env_checker import check_env
 from torch import rand as torch_rand
+from torch import round as torch_round
 from torch import Tensor
 
-class Test_wrapping_pong_duel(unittest.TestCase):
+class Test_ActionConverter(unittest.TestCase):
+    def test_pong_duel_converter(self):
+        mapper = lambda actions: torch_round(actions * 1.5 + 1).flatten().tolist()
+        action_tensor = torch_rand((2,)) * 2 -1
+        action_list   = mapper(action_tensor)
+        self.assertEqual(len(action_list), 2, "the action list is not of dim 2")
+        self.assertTrue(all([0 <= i <= 2 for i in action_list]), "the action list is not mapped to [0, 2]")
+        print("Origin:", action_tensor)
+        print("Action:", action_list)
+        
+
+class Test_WrappingPongDuel(unittest.TestCase):
+    def test_pong_duel_wrap(self):
+        wrapper = VectorizedMultiAgentEnvWrapper.MultiAgentEnvWrapper(
+            env="PongDuel-v0", 
+            mapper=lambda actions: torch_round(actions * 1.5 + 1).flatten().tolist()
+        )
+        self.assertEqual(wrapper.observation_space.shape, (2,10))
+        self.assertEqual(wrapper.action_space.shape,      (2,))
+
+
     def test_agent_wrap_act(self):
-        from torch import round as torch_round
         wrapper = VectorizedMultiAgentEnvWrapper.MultiAgentEnvWrapper(
             env="PongDuel-v0", 
             mapper=lambda actions: torch_round(actions * 1.5 + 1).flatten().tolist()
@@ -56,7 +76,6 @@ class Test_wrapping_pong_duel(unittest.TestCase):
     #     self.assertTrue(check_env(wrapper), "env check for wrapper does not pass")
         
     def test_agent_step(self):
-        from torch import round as torch_round
         wrapper = VectorizedMultiAgentEnvWrapper.MultiAgentEnvWrapper(
             env="PongDuel-v0", 
             mapper=lambda actions: torch_round(actions * 1.5 + 1).flatten().tolist()
