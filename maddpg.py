@@ -38,7 +38,7 @@ class agents:
                   value, this mechanism will not be in effect. 
     """
     def __init__(self,
-        model: "maddpg",
+        model: "MaDDPG",
         min_steps: int,
         max_steps: int = -1) -> None:
         self.__model     = model
@@ -80,7 +80,7 @@ class agents:
         self.__next_time_terminate = False
         return self
 
-class maddpg:
+class MaDDPG:
     """ 
     Implementation of Multi-agent DDPG (MADDPG)
 

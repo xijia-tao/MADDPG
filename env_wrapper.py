@@ -124,7 +124,7 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
         return [self.envs[i] for i in indices]
 
     
-    class MultiAgentEnvWrapper:
+    class MultiAgentEnvWrapper(gym.Env):
         """ Direct wrapper for EACH multi-agent environment. 
 
         We have this wrapper to ensure that each ENV outputs the multi-agent obseravation and 
@@ -198,24 +198,22 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
             """
             # calculate the action dimension
             if isinstance(self.action_space_, spaces.Discrete):
-                act_num = (self.agent_num,) # Discrete => ONE
+                act_shape = (self.agent_num,) # Discrete => ONE
             elif isinstance(self.action_space_, spaces.Box):
-                act_num = (self.agent_num,) + self.action_space_.shape
+                act_shape = (self.agent_num,) + self.action_space_.shape
             elif isinstance(self.action_space_, list):
-                act_num = (self.agent_num, len(self.action_space_),) + self.action_space_[0].shape if isinstance(self.action_space_[0], spaces.Box) else (self.agent_num, len(self.action_space_)) 
+                act_shape = (self.agent_num, len(self.action_space_),) + self.action_space_[0].shape if isinstance(self.action_space_[0], spaces.Box) else (self.agent_num, len(self.action_space_)) 
             else:
-                act_num = (1,) # DEFAULT
-            return spaces.Box(-1, 1, (self.agent_num,)+act_num)
+                act_shape = (1,) # DEFAULT
+            return spaces.Box(-1, 1, act_shape)
 
-        def reset(self, **kwargs) -> torch.Tensor:
+        def reset(self) -> np.ndarray:
             """ Reset the environemnt
 
-            Args: 
-                kwargs: keyword arguments for the reset method of the inner environment
             Returns: 
                 The intialized state, re-formed into a tensor the same shape as self.observation_space
             """
-            states_ = self.env.reset(kwargs)
+            states_ = self.env.reset()
             states = []
             for state in states_:
                 states.append(state)
@@ -270,7 +268,7 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
                     actions = torch.Tensor(actions)
             # action is of shape(2, 1), varied within (-1.0, 1,0)
 
-            with torch.no_grad:
+            with torch.no_grad():
                 actions_int = self.mapper(actions)
 
             states, rewards, dones, info = self.env.step(actions_int)

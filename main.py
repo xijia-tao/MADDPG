@@ -1,6 +1,7 @@
 import numpy as np
 from ma_policy import ma_policy
-from maddpg import maddpg
+from maddpg import MaDDPG
+from torch import round
 
 DEFAULT_LEARN_STEPS  = 10000
 DEFAULT_TEST_STEPS   = 10000
@@ -8,7 +9,7 @@ ENV_NAMES            = "PongDuel-v0"
 OUTPUT_FRAMES_DIR    = 'output/video.npz'
 
 if __name__ == '__main__':
-    model = maddpg(
+    model = MaDDPG(
         policy=ma_policy,
         env=ENV_NAMES,
         mapper=lambda actions: round(actions * 1.5 + 1).flatten().tolist()
