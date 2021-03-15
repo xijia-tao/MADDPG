@@ -199,8 +199,7 @@ class ma_actor(BasePolicy):
             results.append(agent.forward(obs[:,i])) # first dim is the batch size
         # results if of list of Tensor of shape(Batch Size, Action Dim...)
         batch_size = obs.shape[0]
-        else_shape = results[0].shape[1:]
-        return torch.cat(results, dim=1).reshape((batch_size, -1) + else_shape)
+        return torch.cat(results, dim=1).reshape((batch_size,) + self.action_space.shape)
 
     def _predict(self, obs: torch.Tensor, deterministic: bool) -> torch.Tensor:
         """ Get the action according to the policy for a given observation.
