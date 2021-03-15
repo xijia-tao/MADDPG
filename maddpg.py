@@ -3,8 +3,8 @@ from env_wrapper import VectorizedMultiAgentEnvWrapper
 import gym
 import numpy as np
 
-from torch import round
-from typing import Any, Optional, Tuple, Type, Union
+from torch import round, Tensor
+from typing import Any, Callable, Optional, Tuple, Type, Union
 from stable_baselines3 import TD3
 from stable_baselines3.td3.policies import TD3Policy
 
@@ -93,12 +93,16 @@ class maddpg:
         policy: the actor-critic policy, inherited from TD3Policy, or a string if the policy 
                 has been registered
         env:    name of the environment
+        mapper: a function that converts the action outputs from the model to what can be
+                accepted by the env object. See VectorizedMultiAgentEnvWrapper.MultiAgentEnvWrapper
+                for details. 
     """
     def __init__(self, 
         policy: Union[str, Type[TD3Policy]],
-        env: str
+        env: str, 
+        mapper: Callable[[Tensor], Union[Tensor, np.ndarray, list]] = None
     ) -> None:
-        env = self._get_env(env)
+        env = self._get_env(env, mapper)
 
         self.__env       = env
         self.__policy    = policy
@@ -126,15 +130,20 @@ class maddpg:
         self.__ddpg.learn(total_timesteps)
 
     @staticmethod
-    def _get_env(env: Union[str, gym.Env]):
+    def _get_env(env: Union[str, gym.Env], mapper: Callable[[Tensor], Union[Tensor, np.ndarray, list]] = None):
         """ 
         Get & wrap the underlying environment for the model
+
+        Args: 
+            env: the environment, string if the environment has been registered
+            mapper: the function converting actions from different spaces, see
+                VectorizedMultiAgentEnvWrapper.MultiAgentEnvWrapper for details
 
         Returns: 
             A wrapper of ma-gym environment that is compatible 
             with the stable-baselines3 algorithms
         """
-        return VectorizedMultiAgentEnvWrapper([(lambda: env, lambda actions: round(actions * 1.5 + 1).flatten().tolist())])
+        return VectorizedMultiAgentEnvWrapper([(lambda: env, mapper)])
 
     def predict(self, observation: np.ndarray) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         """

@@ -21,7 +21,9 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
         """ Constructor
 
         Args:
-             env_fns: a list of functions that return environments to vectorize
+            env_fns: a list of pairs of functions, the first of which create one environment and the second is the mapper
+                that converts the action outputs from the model to what can be accepted by the env object. 
+                See VectorizedMultiAgentEnvWrapper.MultiAgentEnvWrapper for details
         """
         self.envs = [self.MultiAgentEnvWrapper(fn_pair[0](), fn_pair[1]) for fn_pair in env_fns]
         env = self.envs[0]
@@ -191,16 +193,16 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
                 Box whose shape = (1,)
 
             Returns:
-                A box space, whose shape is (agent num, 1) if the action space is discrete, and
+                A box space, whose shape is (agent num,) if the action space is discrete, and
                 (agent num, the shape of the original self.action_space_) otherwise. 
             """
             # calculate the action dimension
             if isinstance(self.action_space_, spaces.Discrete):
-                act_num = (1,) # Discrete => ONE
+                act_num = (self.agent_num,) # Discrete => ONE
             elif isinstance(self.action_space_, spaces.Box):
-                act_num = self.action_space_.shape
+                act_num = (self.agent_num,) + self.action_space_.shape
             elif isinstance(self.action_space_, list):
-                act_num = (len(self.action_space_),) + self.action_space_[0].shape if isinstance(self.action_space_[0], spaces.Box) else (len(self.action_space_), 1) 
+                act_num = (self.agent_num, len(self.action_space_),) + self.action_space_[0].shape if isinstance(self.action_space_[0], spaces.Box) else (self.agent_num, len(self.action_space_)) 
             else:
                 act_num = (1,) # DEFAULT
             return spaces.Box(-1, 1, (self.agent_num,)+act_num)

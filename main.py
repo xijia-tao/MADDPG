@@ -8,7 +8,11 @@ ENV_NAMES            = "PongDuel-v0"
 OUTPUT_FRAMES_DIR    = 'output/video.npz'
 
 if __name__ == '__main__':
-    model = maddpg(ma_policy, ENV_NAMES)
+    model = maddpg(
+        policy=ma_policy,
+        env=ENV_NAMES,
+        mapper=lambda actions: round(actions * 1.5 + 1).flatten().tolist()
+    )
     model.learn(DEFAULT_LEARN_STEPS)
 
     results = []
