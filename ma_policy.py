@@ -1,4 +1,5 @@
 from stable_baselines3.common.policies import BaseModel, BasePolicy, ContinuousCritic
+from stable_baselines3.common.preprocessing import get_flattened_obs_dim
 
 import torch
 from torch import nn, Tensor
@@ -155,7 +156,9 @@ class ma_actor(BasePolicy):
         act_high = np.array(action_space.high).flatten()[0]
         
         real_observation_space = spaces.Box(obs_low, obs_high, observation_space.shape[1:])
-        real_action_space      = spaces.Box(act_low, act_high, action_space.shape[1:])
+        real_action_space      = spaces.Box(act_low, act_high, (1,) + action_space.shape[1:])
+        # origin feature dim is calculated based on observation_space, instead of the real one
+        features_dim = get_flattened_obs_dim(real_observation_space)
 
         self._agents = [single_actor(real_observation_space, real_action_space, net_arch, features_extractor, features_dim, activation_fn, normalize_images) for _ in range(agent_num)]
 

@@ -272,13 +272,15 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
             """
             if not isinstance(actions, torch.Tensor):
                 if isinstance(actions, np.ndarray):
-                    actions = torch.from_numpy(actions)
+                    actions_torch = torch.from_numpy(actions)
                 else:
-                    actions = torch.Tensor(actions)
+                    actions_torch = torch.Tensor(actions)
+            else:
+                actions_torch = actions
             # action is of shape(2, 1), varied within (-1.0, 1,0)
 
             with torch.no_grad():
-                actions_int = self.mapper(actions)
+                actions_int = self.mapper(actions_torch)
 
             states, rewards, dones, info = self.env.step(actions_int)
             # state: list of Tensor(10,), required Tensor(2,10)
