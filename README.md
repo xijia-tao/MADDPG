@@ -45,7 +45,15 @@ The following modules are required:
 
 ### Run the demo env
 
-**_TODO_**
+The `main.py` utilize the `Pong-Duel` environment from `ma-gym` which here
+serves as the demo. To run it, simply:
+
+```sh
+python3 ./main.py
+```
+
+**_TODO_** How to change the render type
+
 
 ## Collaboration
 
