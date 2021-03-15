@@ -38,6 +38,15 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
         self.actions = None
         self.metadata = env.metadata
 
+    def agent_num(self, indices: VecEnvIndices = 0) -> Union[int, List[int]]:
+        indices = self._get_indices(indices)
+        nums = [self.envs[i].agent_num for i in indices]
+        if len(nums) == 1:
+            return nums[0]
+        else:
+            return nums
+
+
     def _save_obs(self, env_idx: int, obs: VecEnvObs) -> None:
         """ Save the observation of a certain ma-env to obs_buf
 

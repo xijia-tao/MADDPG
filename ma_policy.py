@@ -176,7 +176,7 @@ class ma_actor(BasePolicy):
         """
         results = []
         for i,agent in enumerate(self._agents):
-            results.append(agent.forward(obs[:,i], deterministic)) # first dim is the batch size
+            results.append(agent.forward(obs[:,i])) # first dim is the batch size
         # results if of list of Tensor of shape(Batch Size, Action Dim...)
         batch_size = obs.shape[0]
         num_agent  = len(results)

@@ -102,13 +102,13 @@ class MaDDPG:
         env: str, 
         mapper: Callable[[Tensor], Union[Tensor, np.ndarray, list]] = None
     ) -> None:
-        env = self._get_env(env, mapper)
+        vecEnv = self._get_env(env, mapper)
 
-        self.__env       = env
-        self.__policy    = policy
-        self.__ddpg      = TD3(
-            self.__policy,
-            self.__env,
+        self._env       = vecEnv
+        self._policy    = policy
+        self._ddpg      = TD3(
+            self._policy,
+            self._env,
             learning_rate   = LEARNING_RATE,
             buffer_size     = BUFFER_SIZE,
             learning_starts = LEARNING_STARTS,
@@ -117,8 +117,9 @@ class MaDDPG:
             gamma           = GAMMA,
             policy_delay    = POLICY_DELAY,
             train_freq      = (N_EPISODES_ROLLOUT, 'episode'),
-            policy_kwargs   = {"agent_num": env.agent_num}
+            policy_kwargs   = {"agent_num": vecEnv.agent_num()}
         )
+        self._ddpg.replay_buffer.rewards = np.zeros((BUFFER_SIZE, len(vecEnv.envs), vecEnv.agent_num()), dtype=np.float32)
             
     def learn(self, total_timesteps = 10000) -> None:
         """ 
@@ -127,7 +128,7 @@ class MaDDPG:
         Args
             total_timesteps: learn for how many timesteps
         """
-        self.__ddpg.learn(total_timesteps)
+        self._ddpg.learn(total_timesteps)
 
     @staticmethod
     def _get_env(env: Union[str, gym.Env], mapper: Callable[[Tensor], Union[Tensor, np.ndarray, list]] = None):
@@ -156,7 +157,7 @@ class MaDDPG:
             The model's action and the next state
             (used in recurrent policies)
         """
-        return self.__ddpg.predict(observation, deterministic=True)
+        return self._ddpg.predict(observation, deterministic=True)
 
     def execute(self, num_of_step: int) -> agents:
         """ 
@@ -171,4 +172,4 @@ class MaDDPG:
         Returns: 
             An iterator over the agent
         """
-        return iter(agents(self, self.__env, num_of_step, max_steps=2*num_of_step))
+        return iter(agents(self, self._env, num_of_step, max_steps=2*num_of_step))
