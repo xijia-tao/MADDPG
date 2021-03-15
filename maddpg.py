@@ -1,10 +1,11 @@
 # from hyper_parameters import td3_parameters, env_wrapper
-from utils import VectorizedMultiAgentEnvWrapper
+from env_wrapper import VectorizedMultiAgentEnvWrapper
 import gym
 import numpy as np
+
+from torch import round
 from typing import Any, Optional, Tuple, Type, Union
 from stable_baselines3 import TD3
-from stable_baselines3.common.type_aliases import GymEnv
 from stable_baselines3.td3.policies import TD3Policy
 
 EXE_ENV = 'TEST'
@@ -133,7 +134,7 @@ class maddpg:
             A wrapper of ma-gym environment that is compatible 
             with the stable-baselines3 algorithms
         """
-        return VectorizedMultiAgentEnvWrapper([lambda: env])
+        return VectorizedMultiAgentEnvWrapper([(lambda: env, lambda actions: round(actions * 1.5 + 1).flatten().tolist())])
 
     def predict(self, observation: np.ndarray) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         """

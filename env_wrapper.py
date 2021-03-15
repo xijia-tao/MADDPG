@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 from gym import spaces
-from typing import Any, Callable, List, Optional, Sequence, Type, Union
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Type, Union
 from stable_baselines3.common.vec_env.base_vec_env import VecEnv, VecEnvIndices, VecEnvObs, VecEnvStepReturn
 from stable_baselines3.common.vec_env.util import copy_obs_dict, obs_space_info, dict_to_obs
 
@@ -17,13 +17,13 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
     perform in the compatible way with those models defiend for
     single agent environments. 
     """
-    def __init__(self, env_fns: List[Callable[[], Union[str, gym.Env]]]):
+    def __init__(self, env_fns: List[Tuple[Callable[[], Union[str, gym.Env]], Callable[[torch.Tensor], torch.Tensor]]]):
         """ Constructor
 
         Args:
              env_fns: a list of functions that return environments to vectorize
         """
-        self.envs = [self.MultiAgentEnvWrapper(fn()) for fn in env_fns]
+        self.envs = [self.MultiAgentEnvWrapper(fn_pair[0](), fn_pair[1]) for fn_pair in env_fns]
         env = self.envs[0]
         VecEnv.__init__(self, len(env_fns), env.observation_space, env.action_space)
         obs_space = env.observation_space
@@ -141,29 +141,30 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
             - Convert discrete action space to continuous one. 
             - Add reward_range & metadata attributes
         """
-        def __init__(self, env: Union[str, gym.Env]):
+        def __init__(self, env: Union[str, gym.Env], mapper: Callable[[torch.Tensor], torch.Tensor]):
             if isinstance(env, str):
                 env = gym.make(env)
 
-            self.env = env
-
+            self.env       = env
+            self.mapper    = mapper
             self.agent_num = len(env.action_space)
 
+
             self.observation_space_ = env.observation_space[0]
-            self.observation_space = self._wrap_obs()
+            self.observation_space  = self._wrap_obs()
 
             self.action_space_ = env.action_space[0]
-            self.action_space = self._wrap_act()
+            self.action_space  = self._wrap_act()
 
             self.reward_range = env.reward_range
-            self.metadata = env.metadata
+            self.metadata     = env.metadata
 
         def _wrap_obs(self):
-            obs_shape = self.observation_space_.shape
+            obs_shape  = self.observation_space_.shape
             obs_shape_ = [self.agent_num if i == -1 else obs_shape[i] for i in range(-1,len(obs_shape))]
             obs_shape_ = tuple(obs_shape_)
-            obs_low = np.array(self.observation_space_.low).flatten()[0]
-            obs_high = np.array(self.observation_space_.high).flatten()[0]
+            obs_low    = np.array(self.observation_space_.low).flatten()[0]
+            obs_high   = np.array(self.observation_space_.high).flatten()[0]
 
             return gym.spaces.Box(obs_low, obs_high, obs_shape_)
 
@@ -199,11 +200,16 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
             return self.env.reset()
 
         def step(self, actions):
-            actions = torch.Tensor(actions)
+            if not isinstance(actions, torch.Tensor):
+                if isinstance(actions, np.ndarray):
+                    actions = torch.from_numpy(actions)
+                else:
+                    actions = torch.Tensor(actions)
             # action is of shape(2, 1), varied within (-1.0, 1,0)
+
             actions_int = []
             ## with torch.no_grad:
-            actions_int.extend(torch.round(actions * 1.5 + 1).flatten().tolist())
+            actions_int.extend(self.mapper(actions))
 
             states, rewards, dones, info = self.env.step(actions_int)
             # state: list of Tensor(10,), required Tensor(2,10)
