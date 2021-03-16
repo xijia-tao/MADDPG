@@ -160,9 +160,9 @@ class MaActor(BasePolicy):
 
         Args: 
             observation_space: Obervation space
-            real_observation_space: #TODO
+            real_observation_space: The observation space for EACH AGENT
             action_space: Action space
-            real_action_spae: #TODO
+            real_action_spae: The action space for EACH AGENT
             net_arch: Network architecture
             features_extractor: Network to extract features
                 (a CNN when using images, a nn.Flatten() layer otherwise)
@@ -256,10 +256,10 @@ class MaCritic(BaseModel):
         """ Constructor
 
         Args: 
-        	observation_space: Obervation space
-            real_observation_space: #TODO
-        	action_space: Action space
-            real_action_space: #TODO
+            observation_space: Obervation space
+            real_observation_space: The observation space for EACH AGENT
+            action_space: Action space
+            real_action_spae: The action space for EACH AGENT
         	net_arch: Network architecture
         	features_extractor: Network to extract features
                (a CNN when using images, a nn.Flatten() layer otherwise)
