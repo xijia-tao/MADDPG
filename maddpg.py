@@ -1,9 +1,10 @@
 # from hyper_parameters import td3_parameters, env_wrapper
+from utils.buffer import MultiAgentReplayBuffer
 from utils.env_wrapper import VectorizedMultiAgentEnvWrapper
 import gym
 import numpy as np
 
-from torch import round, Tensor
+from torch import Tensor
 from typing import Any, Callable, Optional, Tuple, Type, Union
 from stable_baselines3 import TD3
 from stable_baselines3.td3.policies import TD3Policy
@@ -119,11 +120,15 @@ class MaDDPG:
             train_freq      = (N_EPISODES_ROLLOUT, 'episode'),
             policy_kwargs   = {"agent_num": vecEnv.agent_num()}
         )
-        self._ddpg.replay_buffer.rewards = np.zeros((BUFFER_SIZE, len(vecEnv.envs), vecEnv.agent_num()), dtype=np.float32)
-        self._ddpg.replay_buffer.dones   = np.zeros((BUFFER_SIZE, len(vecEnv.envs), 1), dtype=bool) 
-        # dones of shape [100, 1, 1]
-        # the original replay buffer dones is of shape [100, 1], which leads to unexpected broadcasting
-        # during its multiplication with Q, as both Q and reward are of shape [100, 1, agent_num]
+        self._ddpg.replay_buffer = MultiAgentReplayBuffer(
+            buffer_size       = BUFFER_SIZE, 
+            observation_space = vecEnv.observation_space,
+            action_space      = vecEnv.action_space,
+            device            = self._ddpg.replay_buffer.device,
+            n_envs            = len(vecEnv.envs),
+            n_agent           = vecEnv.agent_num, 
+            optimize_memory_usage = self._ddpg.replay_buffer.optimize_memory_usage
+        )
             
     def learn(self, total_timesteps = 10000) -> None:
         """ 

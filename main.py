@@ -1,5 +1,5 @@
 import numpy as np
-from ma_policy import ma_policy
+from utils.ma_policy import ma_policy
 from maddpg import MaDDPG
 from torch import round
 
