@@ -1,24 +1,21 @@
-from stable_baselines3.common.policies import BaseModel, BasePolicy, ContinuousCritic
-
-import torch
-from torch import nn, Tensor
-from stable_baselines3.td3.policies import TD3Policy, Actor as single_actor
-from gym import spaces
 import numpy as np
+import torch
+
+from gym import spaces
+from stable_baselines3.common.policies import BaseModel, BasePolicy, ContinuousCritic
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor, FlattenExtractor
+from stable_baselines3.common.type_aliases import Schedule
+from stable_baselines3.td3.policies import TD3Policy, Actor as single_actor
+from torch import nn, Tensor
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 
-from stable_baselines3.common.torch_layers import (
-    BaseFeaturesExtractor,
-    FlattenExtractor,
-)
-from stable_baselines3.common.type_aliases import Schedule
 
 # A multi-agent policy based on TD3 algorithm
 # Paper: https://arxiv.org/abs/1802.09477 (TD3)
 # The code conforms to the (official) implementation: https://github.com/sfujim/TD3
 
 
-class ma_policy(TD3Policy):
+class MaPolicy(TD3Policy):
     """
     Policy class (with both actor and critic) for MADDPG,
     inherited from TD3Policy.
@@ -46,7 +43,7 @@ class ma_policy(TD3Policy):
         agent_num: int = 2
         ):
 
-        super(ma_policy, self).__init__(
+        super(MaPolicy, self).__init__(
             observation_space,
             action_space,
             lr_schedule,
@@ -60,11 +57,20 @@ class ma_policy(TD3Policy):
             n_critics,
             share_features_extractor
         )
+        obs_low  = np.array(self.observation_space.low).flatten()[0]
+        obs_high = np.array(self.observation_space.high).flatten()[0]
+        act_low  = np.array(action_space.low).flatten()[0]
+        act_high = np.array(action_space.high).flatten()[0]
+        
+        self.real_observation_space = spaces.Box(obs_low, obs_high, self.observation_space.shape[1:])
+        self.real_action_space      = spaces.Box(act_low, act_high, (1,) + action_space.shape[1:])
 
         self.actor, self.actor_target = None, None
         self.critic, self.critic_target = None, None
         extra_kwarg_ = {
-            "agent_num": agent_num
+            "agent_num": agent_num,
+            "real_observation_space": self.real_observation_space,
+            "real_action_space": self.real_action_space
         }
         self.actor_kwargs.update(extra_kwarg_)
         self.critic_kwargs.update(extra_kwarg_)
@@ -78,7 +84,12 @@ class ma_policy(TD3Policy):
         # for this class
         pass
 
-    def make_actor(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> "ma_actor":
+    def make_features_extractor(self) -> BaseFeaturesExtractor:
+        """
+        """
+        return self.features_extractor_class(self.real_observation_space, **self.features_extractor_kwargs)
+
+    def make_actor(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> "MaActor":
         """ Create an actor network
 
         The function will be invoked within super()._build(...) to prepare the actor for the TD3.
@@ -90,9 +101,9 @@ class ma_policy(TD3Policy):
             An ma_actor, which independently executes multiple actors simultaneously
         """
         actor_kwargs = self._update_features_extractor(self.actor_kwargs, features_extractor)
-        return ma_actor(**actor_kwargs).to(self.device)
+        return MaActor(**actor_kwargs).to(self.device)
 
-    def make_critic(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> "ma_critic":
+    def make_critic(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> "MaCritic":
         """ Createa the critic network
 
         The function will be invoked within super()._build(...) TWICE: one for creating the Q network
@@ -106,10 +117,26 @@ class ma_policy(TD3Policy):
             EACH agent. 
         """
         critic_kwargs = self._update_features_extractor(self.critic_kwargs, features_extractor)
-        return ma_critic(**critic_kwargs).to(self.device)
+        return MaCritic(**critic_kwargs).to(self.device)
+
+    def unscale_action(self, scaled_action: np.ndarray) -> np.ndarray:
+        low, high = self.action_space.low, self.action_space.high
+        if hasattr(low, "__len__"):
+            low = low[0]
+        if hasattr(high, "__len__"):
+            high = high[0]
+        return low + (0.5 * (scaled_action + 1.0) * (high - low))
+
+    def scale_action(self, action: np.ndarray) -> np.ndarray:
+        low, high = self.action_space.low, self.action_space.high
+        if hasattr(low, "__len__"):
+            low = low[0]
+        if hasattr(high, "__len__"):
+            high = high[0]
+        return 2.0 * ((action - low) / (high - low)) - 1.0
 
 
-class ma_actor(BasePolicy):
+class MaActor(BasePolicy):
     """ The multi-agent actor class. 
 
     The class manipulates one network (which is a td3.policies.Actor object) in the same time, 
@@ -119,7 +146,9 @@ class ma_actor(BasePolicy):
     def __init__(
         self,
         observation_space: spaces.Box,
+        real_observation_space: spaces.Box,
         action_space: spaces.Box,
+        real_action_space: spaces.Box,
         net_arch: List[int],
         features_extractor: nn.Module,
         features_dim: int,
@@ -131,7 +160,9 @@ class ma_actor(BasePolicy):
 
         Args: 
             observation_space: Obervation space
+            real_observation_space: #TODO
             action_space: Action space
+            real_action_spae: #TODO
             net_arch: Network architecture
             features_extractor: Network to extract features
                 (a CNN when using images, a nn.Flatten() layer otherwise)
@@ -141,22 +172,13 @@ class ma_actor(BasePolicy):
                 dividing by 255.0 (True by default)
             agent_num: the number of agents
         """
-        super(ma_actor, self).__init__(
+        super(MaActor, self).__init__(
             observation_space,
             action_space,
             features_extractor=features_extractor,
             normalize_images=normalize_images,
             squash_output=True,
         )
-
-        obs_low = np.array(observation_space.low).flatten()[0]
-        obs_high = np.array(observation_space.high).flatten()[0]
-        act_low = np.array(action_space.low).flatten()[0]
-        act_high = np.array(action_space.high).flatten()[0]
-        
-        real_observation_space = spaces.Box(obs_low, obs_high, observation_space.shape[1:])
-        real_action_space      = spaces.Box(act_low, act_high, action_space.shape[1:])
-
         self._agents = [single_actor(real_observation_space, real_action_space, net_arch, features_extractor, features_dim, activation_fn, normalize_images) for _ in range(agent_num)]
 
         for idx, agent_model in enumerate(self._agents):
@@ -176,11 +198,10 @@ class ma_actor(BasePolicy):
         """
         results = []
         for i,agent in enumerate(self._agents):
-            results.append(agent.forward(obs[:,i], deterministic)) # first dim is the batch size
+            results.append(agent.forward(obs[:,i])) # first dim is the batch size
         # results if of list of Tensor of shape(Batch Size, Action Dim...)
         batch_size = obs.shape[0]
-        num_agent  = len(results)
-        return torch.cat(results, dim=1).reshape(batch_size, num_agent, -1)
+        return torch.cat(results, dim=1).reshape((batch_size,) + self.action_space.shape)
 
     def _predict(self, obs: torch.Tensor, deterministic: bool) -> torch.Tensor:
         """ Get the action according to the policy for a given observation.
@@ -211,7 +232,7 @@ class ma_actor(BasePolicy):
         return sub_data
         
 
-class ma_critic(BaseModel):
+class MaCritic(BaseModel):
     """ The multi-agent critic class.
 
     Double Q-learning for multiple-agent scenario. The internal implementation 
@@ -220,7 +241,9 @@ class ma_critic(BaseModel):
     def __init__(
         self,
         observation_space: spaces.Space,
+        real_observation_space: spaces.Space,
         action_space: spaces.Space,
+        real_action_space: spaces.Space,
         net_arch: List[int],
         features_extractor: nn.Module,
         features_dim: int,
@@ -234,7 +257,9 @@ class ma_critic(BaseModel):
 
         Args: 
         	observation_space: Obervation space
+            real_observation_space: #TODO
         	action_space: Action space
+            real_action_space: #TODO
         	net_arch: Network architecture
         	features_extractor: Network to extract features
                (a CNN when using images, a nn.Flatten() layer otherwise)
@@ -253,11 +278,17 @@ class ma_critic(BaseModel):
             normalize_images=normalize_images,
         )
 
-        obs_low = np.array(observation_space.low).flatten()[0]
-        obs_high = np.array(observation_space.high).flatten()[0]
-        real_observation_space = spaces.Box(obs_low, obs_high, observation_space.shape[1:])
-
-        self._critics = [ContinuousCritic(real_observation_space, action_space, net_arch, features_extractor, features_dim, activation_fn, normalize_images, n_critics, share_features_extractor) for _ in range(agent_num)]
+        self._critics = [ContinuousCritic(
+            observation_space  = real_observation_space, 
+            action_space       = action_space,
+            net_arch           = net_arch,
+            features_extractor = features_extractor,
+            features_dim       = features_dim,
+            activation_fn      = activation_fn,
+            normalize_images   = normalize_images,
+            n_critics          = n_critics,
+            share_features_extractor=False) for _ in range(agent_num)]
+        
         for idx, criticNN in enumerate(self._critics):
             self.add_module(f"ag_c_{idx}", criticNN)
 

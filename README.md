@@ -22,10 +22,10 @@ is an widely-used extension of DDPG, which uses some tricks to enhance the perfo
 TD3 was single-agent model. Therefore, some tricks are used to tackle the issue, including:
 
 1. Customized both A&C networks;
-1. Expand _Q_ which is of shape (Batch Size, 1) to shape (Batch Size, 1, _N_); N stands for
-number of agetns, and
-1. Use a wrapper to wrap the MA environment so that it can be trained as if it is a
-single-agent one. 
+1. Expand _Q_ which is of shape (Batch Size, 1) to shape (Batch Size, 1, _N_); N 
+stands for number of agetns, and
+1. Use a wrapper to wrap the MA environment so that it can be trained as if it is 
+a single-agent one. 
 
 ## Quick start
 
@@ -45,7 +45,15 @@ The following modules are required:
 
 ### Run the demo env
 
-**_TODO_**
+The `main.py` utilize the `Pong-Duel` environment from `ma-gym` which here
+serves as the demo. To run it, simply:
+
+```sh
+python3 ./main.py
+```
+
+**_TODO_** How to change the render type
+
 
 ## Collaboration
 
@@ -53,7 +61,17 @@ The following modules are required:
 
 ### Code structure
 
-**_TODO_**
+* `maddpg.py` is the core implementation of the algorithm, which encapsulates a
+TD3 object inside and invoke the corresponding TD3 methods for training and
+evaluating. 
+* `env_wrapper.py` implements the wrapper for multi-agent environments and
+the vectorized multi-agent environment which support multiple multi-agent
+wrapper in the same time. 
+* `ma_policy.py` implements the actor-critic algorithm for multi-agent settings, 
+which is corresponding to the core of the paper.
+* `main.py` implements a demo based on `Pong-Duel` environment from `ma-gym`
+* The rest files which are ended with `_test` suffix are unit tests, all based
+on the `unittest` module. 
 
 ### Switch to other environments
 
