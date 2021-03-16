@@ -9,25 +9,6 @@ implementation open-sourced on GitHub were found utilizing the
 this project and aim to implement a robust and adaptable version of MADDPG
 with SB3. 
 
-### DDPG
-
-The DDPG we used as the base algorithm is actually the 
-[TD3 algorithm in SB3](https://stable-baselines3.readthedocs.io/en/master/modules/td3.html). 
-
-[TD3](https://link.zhihu.com/?target=https%3A//arxiv.org/pdf/1802.09477)
-is an widely-used extension of DDPG, which uses some tricks to enhance the performance. 
-
-### Multi-agent Concerns
-
-TD3 was single-agent model. Therefore, some tricks are used to tackle the issue, including:
-
-1. Customized both A&C networks;
-1. Expand _Q_ which is of shape (Batch Size, 1) to shape (Batch Size, 1, _N_); N 
-stands for number of agetns;
-1. Use a wrapper to wrap the MA environment so that it can be trained as if it is 
-a single-agent one, and
-1. Customized the replay buffer to store interactions with an extra agent dimension. 
-
 ## Quick start
 
 ### Prerequisite
@@ -44,7 +25,7 @@ The following modules are required:
     pip install stable-baselines3
     ```
 
-### Run the demo env
+### Run the demo
 
 The `main.py` utilize the `Pong-Duel` environment from `ma-gym` which here
 serves as the demo. To run it, simply:
@@ -53,14 +34,14 @@ serves as the demo. To run it, simply:
 python3 ./main.py
 ```
 
-Normally, the interaction of will be renderred directly on the screen. 
+_Normally, the interaction of will be renderred directly on the screen. 
 If the traning results is expected to be visualized in a video format,
-one may need to edit the `maddpg.py` file. 
+one may need to edit the `maddpg.py` file._
 
-There is a configuration determining the ways the interactions are
+_There is a configuration determining the ways the interactions are
 to be presented, namely `EXE_ENV`. Changing it anything else other
-than `"TEST"` can instruct the trainer to save the video frames
-as an serialized numpy array file at `output/video.npz`. 
+than `"TEST"` can instruct the model to save the video frames
+as an serialized numpy array file at `output/video.npz`._ 
 
 
 ## Collaboration
@@ -82,6 +63,7 @@ the vectorized multi-agent environment which support multiple multi-agent
 wrapper in the same time. 
 * `ma_policy.py` implements the actor-critic algorithm for multi-agent settings, 
 which is corresponding to the core of the paper.
+* `buffer.py` customizes the replay buffer for multi-agent interaction. 
 * `main.py` implements a demo based on `Pong-Duel` environment from `ma-gym`
 * The rest files which are ended with `_test` suffix are unit tests, all based
 on the `unittest` module. 
