@@ -1,6 +1,5 @@
-# from hyper_parameters import td3_parameters, env_wrapper
-from utils.buffer import MultiAgentReplayBuffer
-from utils.env_wrapper import VectorizedMultiAgentEnvWrapper
+from buffer import MultiAgentReplayBuffer
+from env_wrapper import VectorizedMultiAgentEnvWrapper
 import gym
 import numpy as np
 

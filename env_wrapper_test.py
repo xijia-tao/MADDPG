@@ -1,9 +1,8 @@
 import ma_gym as _
 import unittest
 
-from .env_wrapper import VectorizedMultiAgentEnvWrapper
+from env_wrapper import VectorizedMultiAgentEnvWrapper
 from gym import spaces
-from stable_baselines3.common.env_checker import check_env
 from torch import rand as torch_rand
 from torch import round as torch_round
 from torch import Tensor

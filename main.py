@@ -1,5 +1,5 @@
 import numpy as np
-from utils.ma_policy import ma_policy
+from ma_policy import MaPolicy
 from maddpg import MaDDPG
 from torch import round
 
@@ -10,7 +10,7 @@ OUTPUT_FRAMES_DIR    = 'output/video.npz'
 
 if __name__ == '__main__':
     model = MaDDPG(
-        policy=ma_policy,
+        policy=MaPolicy,
         env=ENV_NAMES,
         mapper=lambda actions: round(actions * 1.5 + 1).flatten().tolist()
     )

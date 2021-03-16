@@ -1,10 +1,11 @@
-from stable_baselines3.common.buffers import ReplayBuffer
+import numpy as np
+import torch as th
+
 from gym import spaces
-from typing import Union, Optional
+from stable_baselines3.common.buffers import ReplayBuffer
 from stable_baselines3.common.type_aliases import ReplayBufferSamples
 from stable_baselines3.common.vec_env.vec_normalize import VecNormalize, 
-import torch as th
-import numpy as np
+from typing import Union, Optional
 
 class MultiAgentReplayBuffer(ReplayBuffer):
     """

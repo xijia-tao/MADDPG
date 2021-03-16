@@ -1,24 +1,21 @@
-from stable_baselines3.common.policies import BaseModel, BasePolicy, ContinuousCritic
-
-import torch
-from torch import nn, Tensor
-from stable_baselines3.td3.policies import TD3Policy, Actor as single_actor
-from gym import spaces
 import numpy as np
+import torch
+
+from gym import spaces
+from stable_baselines3.common.policies import BaseModel, BasePolicy, ContinuousCritic
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor, FlattenExtractor
+from stable_baselines3.common.type_aliases import Schedule
+from stable_baselines3.td3.policies import TD3Policy, Actor as single_actor
+from torch import nn, Tensor
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 
-from stable_baselines3.common.torch_layers import (
-    BaseFeaturesExtractor,
-    FlattenExtractor,
-)
-from stable_baselines3.common.type_aliases import Schedule
 
 # A multi-agent policy based on TD3 algorithm
 # Paper: https://arxiv.org/abs/1802.09477 (TD3)
 # The code conforms to the (official) implementation: https://github.com/sfujim/TD3
 
 
-class ma_policy(TD3Policy):
+class MaPolicy(TD3Policy):
     """
     Policy class (with both actor and critic) for MADDPG,
     inherited from TD3Policy.
@@ -46,7 +43,7 @@ class ma_policy(TD3Policy):
         agent_num: int = 2
         ):
 
-        super(ma_policy, self).__init__(
+        super(MaPolicy, self).__init__(
             observation_space,
             action_space,
             lr_schedule,
@@ -92,7 +89,7 @@ class ma_policy(TD3Policy):
         """
         return self.features_extractor_class(self.real_observation_space, **self.features_extractor_kwargs)
 
-    def make_actor(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> "ma_actor":
+    def make_actor(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> "MaActor":
         """ Create an actor network
 
         The function will be invoked within super()._build(...) to prepare the actor for the TD3.
@@ -104,9 +101,9 @@ class ma_policy(TD3Policy):
             An ma_actor, which independently executes multiple actors simultaneously
         """
         actor_kwargs = self._update_features_extractor(self.actor_kwargs, features_extractor)
-        return ma_actor(**actor_kwargs).to(self.device)
+        return MaActor(**actor_kwargs).to(self.device)
 
-    def make_critic(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> "ma_critic":
+    def make_critic(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> "MaCritic":
         """ Createa the critic network
 
         The function will be invoked within super()._build(...) TWICE: one for creating the Q network
@@ -120,7 +117,7 @@ class ma_policy(TD3Policy):
             EACH agent. 
         """
         critic_kwargs = self._update_features_extractor(self.critic_kwargs, features_extractor)
-        return ma_critic(**critic_kwargs).to(self.device)
+        return MaCritic(**critic_kwargs).to(self.device)
 
     def unscale_action(self, scaled_action: np.ndarray) -> np.ndarray:
         low, high = self.action_space.low, self.action_space.high
@@ -139,7 +136,7 @@ class ma_policy(TD3Policy):
         return 2.0 * ((action - low) / (high - low)) - 1.0
 
 
-class ma_actor(BasePolicy):
+class MaActor(BasePolicy):
     """ The multi-agent actor class. 
 
     The class manipulates one network (which is a td3.policies.Actor object) in the same time, 
@@ -175,7 +172,7 @@ class ma_actor(BasePolicy):
                 dividing by 255.0 (True by default)
             agent_num: the number of agents
         """
-        super(ma_actor, self).__init__(
+        super(MaActor, self).__init__(
             observation_space,
             action_space,
             features_extractor=features_extractor,
@@ -235,7 +232,7 @@ class ma_actor(BasePolicy):
         return sub_data
         
 
-class ma_critic(BaseModel):
+class MaCritic(BaseModel):
     """ The multi-agent critic class.
 
     Double Q-learning for multiple-agent scenario. The internal implementation 
