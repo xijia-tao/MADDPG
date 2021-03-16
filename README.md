@@ -23,9 +23,10 @@ TD3 was single-agent model. Therefore, some tricks are used to tackle the issue,
 
 1. Customized both A&C networks;
 1. Expand _Q_ which is of shape (Batch Size, 1) to shape (Batch Size, 1, _N_); N 
-stands for number of agetns, and
+stands for number of agetns;
 1. Use a wrapper to wrap the MA environment so that it can be trained as if it is 
-a single-agent one. 
+a single-agent one, and
+1. Customized the replay buffer to store interactions with an extra agent dimension. 
 
 ## Quick start
 
@@ -52,12 +53,24 @@ serves as the demo. To run it, simply:
 python3 ./main.py
 ```
 
-**_TODO_** How to change the render type
+Normally, the interaction of will be renderred directly on the screen. 
+If the traning results is expected to be visualized in a video format,
+one may need to edit the `maddpg.py` file. 
+
+There is a configuration determining the ways the interactions are
+to be presented, namely `EXE_ENV`. Changing it anything else other
+than `"TEST"` can instruct the trainer to save the video frames
+as an serialized numpy array file at `output/video.npz`. 
 
 
 ## Collaboration
 
-**_TODO_**
+For details, you are recommended to go through our 
+[Wiki](https://github.com/wwwCielwww/MADDPG/wiki)
+
+_We appologize that currently only the simplified Chinese
+version is provided. We promise that the English version
+will later be prepared as well._
 
 ### Code structure
 
@@ -75,4 +88,17 @@ on the `unittest` module.
 
 ### Switch to other environments
 
-**_TODO_**
+To switch to other environments, this 
+[Wiki page](https://github.com/wwwCielwww/MADDPG/wiki#) might 
+be helpful. Moreoever, since our test cases are based on
+**[MA-GYM](https://github.com/koulanurag/ma-gym)**, it is as
+well recommended to check the implementation there and to code
+for your own multi-agent environment based on a similar
+ideology. 
+
+Breifly speaking, you just need to:
+1. Prepare a environment class;
+1. Register that class to **GYM** framework with
+some name, and finally, 
+3. Replace the value of `ENV_NAME` in `main.py`
+with the name which you have registered your env with.  
