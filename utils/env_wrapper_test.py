@@ -1,7 +1,7 @@
 import ma_gym as _
 import unittest
 
-from env_wrapper import VectorizedMultiAgentEnvWrapper
+from .env_wrapper import VectorizedMultiAgentEnvWrapper
 from gym import spaces
 from stable_baselines3.common.env_checker import check_env
 from torch import rand as torch_rand
@@ -85,7 +85,7 @@ class Test_WrappingPongDuel(unittest.TestCase):
         states, reward, done, _ = wrapper.step(mock_action)
         self.assertTrue(isinstance(states, Tensor))
         self.assertTrue(isinstance(reward, Tensor))
-        self.assertTrue(isinstance(done, bool))
+        self.assertTrue(isinstance(done, list))
         self.assertEqual(states.shape, (2,10))
         self.assertEqual(reward.shape, (1,2))
         

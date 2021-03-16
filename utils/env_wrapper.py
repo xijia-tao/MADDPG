@@ -32,8 +32,8 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
         self.keys, shapes, dtypes = obs_space_info(obs_space)
 
         self.buf_obs = OrderedDict([(k, np.zeros((self.num_envs,) + tuple(shapes[k]), dtype=dtypes[k])) for k in self.keys])
-        self.buf_dones = np.zeros((self.num_envs,), dtype=bool)
-        self.buf_rews = np.zeros((self.num_envs, 1, env.agent_num), dtype=np.float32)
+        self.buf_dones = np.zeros((self.num_envs, 1), dtype=bool)
+        self.buf_rews  = np.zeros((self.num_envs, 1, env.agent_num), dtype=np.float32)
         self.buf_infos = [{} for _ in range(self.num_envs)]
         self.actions = None
         self.metadata = env.metadata
@@ -79,7 +79,7 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
             obs, self.buf_rews[idx], self.buf_dones[idx], self.buf_infos[idx] = env.step(
                 self.actions[idx]
             )
-            if self.buf_dones[idx]:
+            if any(self.buf_dones[idx].tolist()):
                 # save final observation where user can get it, then reset
                 self.buf_infos[idx]["terminal_observation"] = obs
                 obs = self.envs[idx].reset()
@@ -259,7 +259,7 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
             """
             return self.env.close()
 
-        def step(self, actions: Union[torch.Tensor, np.ndarray, list]) -> Tuple[torch.Tensor, torch.Tensor, bool, Any]:
+        def step(self, actions: Union[torch.Tensor, np.ndarray, list]) -> Tuple[torch.Tensor, torch.Tensor, List[bool], Any]:
             """ Execute the actions and return the results
 
             Args: 
@@ -286,4 +286,4 @@ class VectorizedMultiAgentEnvWrapper(VecEnv):
             # state: list of Tensor(10,), required Tensor(2,10)
             # rewards: list of int, required Tensor(1,2)
             states = [torch.Tensor(state) for state in states]
-            return torch.stack(states), torch.Tensor(rewards).reshape(-1, len(rewards)), any(dones), info
+            return torch.stack(states), torch.Tensor(rewards).reshape(-1, len(rewards)), [any(dones)], info

@@ -1,6 +1,4 @@
-from numpy.lib.function_base import iterable
 from stable_baselines3.common.policies import BaseModel, BasePolicy, ContinuousCritic
-from stable_baselines3.common.preprocessing import get_flattened_obs_dim
 
 import torch
 from torch import nn, Tensor
@@ -62,11 +60,20 @@ class ma_policy(TD3Policy):
             n_critics,
             share_features_extractor
         )
+        obs_low  = np.array(self.observation_space.low).flatten()[0]
+        obs_high = np.array(self.observation_space.high).flatten()[0]
+        act_low  = np.array(action_space.low).flatten()[0]
+        act_high = np.array(action_space.high).flatten()[0]
+        
+        self.real_observation_space = spaces.Box(obs_low, obs_high, self.observation_space.shape[1:])
+        self.real_action_space      = spaces.Box(act_low, act_high, (1,) + action_space.shape[1:])
 
         self.actor, self.actor_target = None, None
         self.critic, self.critic_target = None, None
         extra_kwarg_ = {
-            "agent_num": agent_num
+            "agent_num": agent_num,
+            "real_observation_space": self.real_observation_space,
+            "real_action_space": self.real_action_space
         }
         self.actor_kwargs.update(extra_kwarg_)
         self.critic_kwargs.update(extra_kwarg_)
@@ -79,6 +86,11 @@ class ma_policy(TD3Policy):
         # we must defer the invoking until the very end of the __init__()
         # for this class
         pass
+
+    def make_features_extractor(self) -> BaseFeaturesExtractor:
+        """
+        """
+        return self.features_extractor_class(self.real_observation_space, **self.features_extractor_kwargs)
 
     def make_actor(self, features_extractor: Optional[BaseFeaturesExtractor] = None) -> "ma_actor":
         """ Create an actor network
@@ -137,7 +149,9 @@ class ma_actor(BasePolicy):
     def __init__(
         self,
         observation_space: spaces.Box,
+        real_observation_space: spaces.Box,
         action_space: spaces.Box,
+        real_action_space: spaces.Box,
         net_arch: List[int],
         features_extractor: nn.Module,
         features_dim: int,
@@ -149,7 +163,9 @@ class ma_actor(BasePolicy):
 
         Args: 
             observation_space: Obervation space
+            real_observation_space: #TODO
             action_space: Action space
+            real_action_spae: #TODO
             net_arch: Network architecture
             features_extractor: Network to extract features
                 (a CNN when using images, a nn.Flatten() layer otherwise)
@@ -166,17 +182,6 @@ class ma_actor(BasePolicy):
             normalize_images=normalize_images,
             squash_output=True,
         )
-
-        obs_low = np.array(observation_space.low).flatten()[0]
-        obs_high = np.array(observation_space.high).flatten()[0]
-        act_low = np.array(action_space.low).flatten()[0]
-        act_high = np.array(action_space.high).flatten()[0]
-        
-        real_observation_space = spaces.Box(obs_low, obs_high, observation_space.shape[1:])
-        real_action_space      = spaces.Box(act_low, act_high, (1,) + action_space.shape[1:])
-        # origin feature dim is calculated based on observation_space, instead of the real one
-        features_dim = get_flattened_obs_dim(real_observation_space)
-
         self._agents = [single_actor(real_observation_space, real_action_space, net_arch, features_extractor, features_dim, activation_fn, normalize_images) for _ in range(agent_num)]
 
         for idx, agent_model in enumerate(self._agents):
@@ -239,7 +244,9 @@ class ma_critic(BaseModel):
     def __init__(
         self,
         observation_space: spaces.Space,
+        real_observation_space: spaces.Space,
         action_space: spaces.Space,
+        real_action_space: spaces.Space,
         net_arch: List[int],
         features_extractor: nn.Module,
         features_dim: int,
@@ -253,7 +260,9 @@ class ma_critic(BaseModel):
 
         Args: 
         	observation_space: Obervation space
+            real_observation_space: #TODO
         	action_space: Action space
+            real_action_space: #TODO
         	net_arch: Network architecture
         	features_extractor: Network to extract features
                (a CNN when using images, a nn.Flatten() layer otherwise)
@@ -272,11 +281,17 @@ class ma_critic(BaseModel):
             normalize_images=normalize_images,
         )
 
-        obs_low = np.array(observation_space.low).flatten()[0]
-        obs_high = np.array(observation_space.high).flatten()[0]
-        real_observation_space = spaces.Box(obs_low, obs_high, observation_space.shape[1:])
-
-        self._critics = [ContinuousCritic(real_observation_space, action_space, net_arch, features_extractor, features_dim, activation_fn, normalize_images, n_critics, share_features_extractor) for _ in range(agent_num)]
+        self._critics = [ContinuousCritic(
+            observation_space  = real_observation_space, 
+            action_space       = action_space,
+            net_arch           = net_arch,
+            features_extractor = features_extractor,
+            features_dim       = features_dim,
+            activation_fn      = activation_fn,
+            normalize_images   = normalize_images,
+            n_critics          = n_critics,
+            share_features_extractor=False) for _ in range(agent_num)]
+        
         for idx, criticNN in enumerate(self._critics):
             self.add_module(f"ag_c_{idx}", criticNN)
 

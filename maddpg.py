@@ -1,5 +1,5 @@
 # from hyper_parameters import td3_parameters, env_wrapper
-from env_wrapper import VectorizedMultiAgentEnvWrapper
+from utils.env_wrapper import VectorizedMultiAgentEnvWrapper
 import gym
 import numpy as np
 
@@ -120,6 +120,10 @@ class MaDDPG:
             policy_kwargs   = {"agent_num": vecEnv.agent_num()}
         )
         self._ddpg.replay_buffer.rewards = np.zeros((BUFFER_SIZE, len(vecEnv.envs), vecEnv.agent_num()), dtype=np.float32)
+        self._ddpg.replay_buffer.dones   = np.zeros((BUFFER_SIZE, len(vecEnv.envs), 1), dtype=bool) 
+        # dones of shape [100, 1, 1]
+        # the original replay buffer dones is of shape [100, 1], which leads to unexpected broadcasting
+        # during its multiplication with Q, as both Q and reward are of shape [100, 1, agent_num]
             
     def learn(self, total_timesteps = 10000) -> None:
         """ 
