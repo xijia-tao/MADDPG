@@ -8,7 +8,10 @@ from stable_baselines3.common.vec_env.vec_normalize import VecNormalize
 from typing import Union, Optional
 
 class MultiAgentReplayBuffer(ReplayBuffer):
-    """
+    """ Replay buffer for multi-agent scenario
+    
+    The shape for the arrays that storing the intercations are expanded to extra dimension
+    so that multiple agents can be supervised all together
     """
 
     def __init__(self,
@@ -19,7 +22,17 @@ class MultiAgentReplayBuffer(ReplayBuffer):
     n_envs:            int,
     n_agent:           int,
     optimize_memory_usage: bool):
-        """
+        """ Constructor
+        
+        Args: 
+            buffer_size: size of the buffer
+            observation_space: the aggregated observation space for all the agents
+            action_space: the aggregated continuous action space for all the agents
+            device: device descriptor
+            n_envs: number of environments, from which interactions will be collected
+                simultaneously
+            n_agent: number of agents, which must be the same for EVERY envrionment
+                that shares the buffer
         """
         super().__init__(
             buffer_size, 
@@ -36,6 +49,7 @@ class MultiAgentReplayBuffer(ReplayBuffer):
         # during its multiplication with Q, as both Q and reward are of shape [100, 1, agent_num]
 
 
+    # overriden
     def _get_samples(self, batch_inds: np.ndarray, env: Optional[VecNormalize] = None) -> ReplayBufferSamples:
         if self.optimize_memory_usage:
             next_obs = self._normalize_obs(self.observations[(batch_inds + 1) % self.buffer_size, 0, :], env)
