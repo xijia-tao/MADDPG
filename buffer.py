@@ -4,7 +4,7 @@ import torch as th
 from gym import spaces
 from stable_baselines3.common.buffers import ReplayBuffer
 from stable_baselines3.common.type_aliases import ReplayBufferSamples
-from stable_baselines3.common.vec_env.vec_normalize import VecNormalize, 
+from stable_baselines3.common.vec_env.vec_normalize import VecNormalize
 from typing import Union, Optional
 
 class MultiAgentReplayBuffer(ReplayBuffer):
@@ -46,10 +46,10 @@ class MultiAgentReplayBuffer(ReplayBuffer):
         # because Tensor does not support substraction of boolean types
         # but numpy does
         data = (
-            self.to_torch(self._normalize_obs(self.observations[batch_inds, 0, :], env)),
-            self.to_torch(self.actions[batch_inds, 0, :]),
-            self.to_torch(next_obs),
-            self.dones[batch_inds],
-            self.to_torch(self._normalize_reward(self.rewards[batch_inds], env)),
+            self._normalize_obs(self.observations[batch_inds, 0, :], env),
+            self.actions[batch_inds, 0, :],
+            next_obs,
+            self.dones[batch_inds].astype(int),
+            self._normalize_reward(self.rewards[batch_inds], env)
         )
-        return ReplayBufferSamples(*data)
+        return ReplayBufferSamples(*tuple(map(self.to_torch, data)))

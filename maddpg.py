@@ -125,7 +125,7 @@ class MaDDPG:
             action_space      = vecEnv.action_space,
             device            = self._ddpg.replay_buffer.device,
             n_envs            = len(vecEnv.envs),
-            n_agent           = vecEnv.agent_num, 
+            n_agent           = vecEnv.agent_num(), 
             optimize_memory_usage = self._ddpg.replay_buffer.optimize_memory_usage
         )
             
