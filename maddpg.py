@@ -100,7 +100,8 @@ class MaDDPG:
     def __init__(self, 
         policy: Union[str, Type[TD3Policy]],
         env: str, 
-        mapper: Callable[[Tensor], Union[Tensor, np.ndarray, list]] = None
+        mapper: Callable[[Tensor], Union[Tensor, np.ndarray, list]] = None,
+        verbose: bool = True
     ) -> None:
         vecEnv = self._get_env(env, mapper)
 
@@ -117,7 +118,8 @@ class MaDDPG:
             gamma           = GAMMA,
             policy_delay    = POLICY_DELAY,
             train_freq      = (N_EPISODES_ROLLOUT, 'episode'),
-            policy_kwargs   = {"agent_num": vecEnv.agent_num()}
+            policy_kwargs   = {"agent_num": vecEnv.agent_num()},
+            verbose         = verbose
         )
         self._ddpg.replay_buffer = MultiAgentReplayBuffer(
             buffer_size       = BUFFER_SIZE, 

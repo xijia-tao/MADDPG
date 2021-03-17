@@ -12,7 +12,8 @@ if __name__ == '__main__':
     model = MaDDPG(
         policy=MaPolicy,
         env=ENV_NAMES,
-        mapper=lambda actions: round(actions * 1.5 + 1).flatten().tolist()
+        mapper=lambda actions: round(actions * 1.5 + 1).flatten().tolist(),
+        verbose=True
     )
     model.learn(DEFAULT_LEARN_STEPS)
 
