@@ -42,7 +42,7 @@ class agents:
         min_steps: int,
         max_steps: int = -1) -> None:
         self.__model     = model
-        self.__env       = self.__model.env
+        self.__env       = self.__model._env
         self.__obs       = self.__env.reset()
         self.__min_steps = min_steps
         self.__max_steps = max_steps
@@ -60,7 +60,7 @@ class agents:
         """
         action, _ = self.__model.predict(self.__obs)
         self.__obs, _, done, _ = self.__env.step(action)
-        self.__env.render(mode = 'human' if EXE_ENV == 'TEST' else 'rgb_array'), done
+        return self.__env.render(mode = 'human' if EXE_ENV == 'TEST' else 'rgb_array'), done
 
     def __next__(self) -> Any:
         if self.__next_time_terminate or self.__count >= self.__max_steps > 0:
@@ -180,4 +180,4 @@ class MaDDPG:
         Returns: 
             An iterator over the agent
         """
-        return iter(agents(self, self._env, num_of_step, max_steps=2*num_of_step))
+        return iter(agents(self, min_steps=num_of_step, max_steps=2*num_of_step))
