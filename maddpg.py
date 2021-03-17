@@ -40,7 +40,9 @@ class agents:
     def __init__(self,
         model: "MaDDPG",
         min_steps: int,
-        max_steps: int = -1) -> None:
+        max_steps: int = -1,
+        render: bool = False
+    ) -> None:
         self.__model     = model
         self.__env       = self.__model._env
         self.__obs       = self.__env.reset()
@@ -48,7 +50,7 @@ class agents:
         self.__max_steps = max_steps
         self.__count     = 0
         self.__next_time_terminate = False
-
+        self.__render    = render
 
     def _iteract(self) -> Tuple[Any, bool]: 
         """ 
@@ -60,7 +62,11 @@ class agents:
         """
         action, _ = self.__model.predict(self.__obs)
         self.__obs, _, done, _ = self.__env.step(action)
-        return self.__env.render(mode = 'human' if EXE_ENV == 'TEST' else 'rgb_array'), done
+        if self.__render:
+            render_result = self.__env.render(mode = 'human' if EXE_ENV == 'TEST' else 'rgb_array')
+        else:
+            render_result = None
+        return render_result, done
 
     def __next__(self) -> Any:
         if self.__next_time_terminate or self.__count >= self.__max_steps > 0:
@@ -71,8 +77,8 @@ class agents:
             self.__obs = self.__env.reset()
             if self.__count >= self.__min_steps: 
                 self.__next_time_terminate = True
-        return render_result
-        
+        if self.__render:
+            return render_result
 
     def __iter__(self) -> "agents":
         self.__obs   = self.__env.reset()
@@ -101,7 +107,8 @@ class MaDDPG:
         policy: Union[str, Type[TD3Policy]],
         env: str, 
         mapper: Callable[[Tensor], Union[Tensor, np.ndarray, list]] = None,
-        verbose: bool = True
+        verbose: bool = True,
+        tensorboard_log: str = "log/"
     ) -> None:
         vecEnv = self._get_env(env, mapper)
 
@@ -119,7 +126,8 @@ class MaDDPG:
             policy_delay    = POLICY_DELAY,
             train_freq      = (N_EPISODES_ROLLOUT, 'episode'),
             policy_kwargs   = {"agent_num": vecEnv.agent_num()},
-            verbose         = verbose
+            verbose         = verbose,
+            tensorboard_log = tensorboard_log
         )
         self._ddpg.replay_buffer = MultiAgentReplayBuffer(
             buffer_size       = BUFFER_SIZE, 
@@ -169,7 +177,7 @@ class MaDDPG:
         """
         return self._ddpg.predict(observation, deterministic=True)
 
-    def execute(self, num_of_step: int) -> agents:
+    def execute(self, num_of_step: int, render: bool = False) -> agents:
         """ 
         Execute the policy in the environment
         
@@ -182,4 +190,4 @@ class MaDDPG:
         Returns: 
             An iterator over the agent
         """
-        return iter(agents(self, min_steps=num_of_step, max_steps=2*num_of_step))
+        return iter(agents(self, min_steps=num_of_step, max_steps=2*num_of_step, render=render))
