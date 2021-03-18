@@ -1,12 +1,24 @@
-from hyper_parameters import td3_parameters, env_wrapper
+from buffer import MultiAgentReplayBuffer
+from env_wrapper import VectorizedMultiAgentEnvWrapper
 import gym
 import numpy as np
-from typing import Any, Optional, Tuple, Type, Union
+
+from torch import Tensor
+from typing import Any, Callable, Optional, Tuple, Type, Union
 from stable_baselines3 import TD3
-from stable_baselines3.common.type_aliases import GymEnv
 from stable_baselines3.td3.policies import TD3Policy
 
 EXE_ENV = 'TEST'
+
+LEARNING_RATE       = 0.001
+BUFFER_SIZE         = 100000
+LEARNING_STARTS     = 100
+BATCH_SIZE          = 100
+TAU                 = 0.005
+GAMMA               = 0.99
+GRADIENT_STEPS      = -1 #DISABLE
+N_EPISODES_ROLLOUT  = 1
+POLICY_DELAY        = 2
 
 class agents: 
     """ 
@@ -26,17 +38,19 @@ class agents:
                   value, this mechanism will not be in effect. 
     """
     def __init__(self,
-        model: "maddpg",
+        model: "MaDDPG",
         min_steps: int,
-        max_steps: int = -1) -> None:
+        max_steps: int = -1,
+        render: bool = False
+    ) -> None:
         self.__model     = model
-        self.__env       = self.__model.env
+        self.__env       = self.__model._env
         self.__obs       = self.__env.reset()
         self.__min_steps = min_steps
         self.__max_steps = max_steps
         self.__count     = 0
         self.__next_time_terminate = False
-
+        self.__render    = render
 
     def _iteract(self) -> Tuple[Any, bool]: 
         """ 
@@ -48,7 +62,11 @@ class agents:
         """
         action, _ = self.__model.predict(self.__obs)
         self.__obs, _, done, _ = self.__env.step(action)
-        self.__env.render(mode = 'human' if EXE_ENV == 'TEST' else 'rgb_array'), done
+        if self.__render:
+            render_result = self.__env.render(mode = 'human' if EXE_ENV == 'TEST' else 'rgb_array')
+        else:
+            render_result = None
+        return render_result, done
 
     def __next__(self) -> Any:
         if self.__next_time_terminate or self.__count >= self.__max_steps > 0:
@@ -59,8 +77,8 @@ class agents:
             self.__obs = self.__env.reset()
             if self.__count >= self.__min_steps: 
                 self.__next_time_terminate = True
-        return render_result
-        
+        if self.__render:
+            return render_result
 
     def __iter__(self) -> "agents":
         self.__obs   = self.__env.reset()
@@ -68,7 +86,7 @@ class agents:
         self.__next_time_terminate = False
         return self
 
-class maddpg:
+class MaDDPG:
     """ 
     Implementation of Multi-agent DDPG (MADDPG)
 
@@ -81,24 +99,45 @@ class maddpg:
         policy: the actor-critic policy, inherited from TD3Policy, or a string if the policy 
                 has been registered
         env:    name of the environment
+        mapper: a function that converts the action outputs from the model to what can be
+                accepted by the env object. See VectorizedMultiAgentEnvWrapper.MultiAgentEnvWrapper
+                for details. 
     """
     def __init__(self, 
         policy: Union[str, Type[TD3Policy]],
-        env: str
+        env: str, 
+        mapper: Callable[[Tensor], Union[Tensor, np.ndarray, list]] = None,
+        verbose: bool = True,
+        tensorboard_log: str = "log/"
     ) -> None:
-        self.__env       = self.get_env(env)
-        self.__policy    = policy
-        self.__ddpg      = TD3(
-            self.__policy,
-            self.__env,
-            learning_rate   = td3_parameters.LEARNING_RATE,
-            buffer_size     = td3_parameters.BUFFER_SIZE,
-            learning_starts = td3_parameters.LEARNING_STARTS,
-            batch_size      = td3_parameters.BATCH_SIZE,
-            tau             = td3_parameters.TAU,
-            gamma           = td3_parameters.GAMMA,
-            policy_delay    = td3_parameters.POLICY_DELAY,
-            n_episodes_rollout = td3_parameters.N_EPISODES_ROLLOUT)
+        vecEnv = self._get_env(env, mapper)
+
+        self._env       = vecEnv
+        self._policy    = policy
+        self._ddpg      = TD3(
+            self._policy,
+            self._env,
+            learning_rate   = LEARNING_RATE,
+            buffer_size     = BUFFER_SIZE,
+            learning_starts = LEARNING_STARTS,
+            batch_size      = BATCH_SIZE,
+            tau             = TAU,
+            gamma           = GAMMA,
+            policy_delay    = POLICY_DELAY,
+            train_freq      = (N_EPISODES_ROLLOUT, 'episode'),
+            policy_kwargs   = {"agent_num": vecEnv.agent_num()},
+            verbose         = verbose,
+            tensorboard_log = tensorboard_log
+        )
+        self._ddpg.replay_buffer = MultiAgentReplayBuffer(
+            buffer_size       = BUFFER_SIZE, 
+            observation_space = vecEnv.observation_space,
+            action_space      = vecEnv.action_space,
+            device            = self._ddpg.replay_buffer.device,
+            n_envs            = len(vecEnv.envs),
+            n_agent           = vecEnv.agent_num(), 
+            optimize_memory_usage = self._ddpg.replay_buffer.optimize_memory_usage
+        )
             
     def learn(self, total_timesteps = 10000) -> None:
         """ 
@@ -107,19 +146,23 @@ class maddpg:
         Args
             total_timesteps: learn for how many timesteps
         """
-        self.__ddpg.learn(total_timesteps)
+        self._ddpg.learn(total_timesteps)
 
-    def get_env(self, env):
+    @staticmethod
+    def _get_env(env: Union[str, gym.Env], mapper: Callable[[Tensor], Union[Tensor, np.ndarray, list]] = None):
         """ 
         Get & wrap the underlying environment for the model
+
+        Args: 
+            env: the environment, string if the environment has been registered
+            mapper: the function converting actions from different spaces, see
+                VectorizedMultiAgentEnvWrapper.MultiAgentEnvWrapper for details
 
         Returns: 
             A wrapper of ma-gym environment that is compatible 
             with the stable-baselines3 algorithms
         """
-        if isinstance(env, str):
-            return env_wrapper(env)
-        return env
+        return VectorizedMultiAgentEnvWrapper([(lambda: env, mapper)])
 
     def predict(self, observation: np.ndarray) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         """
@@ -132,9 +175,9 @@ class maddpg:
             The model's action and the next state
             (used in recurrent policies)
         """
-        return self.__ddpg.predict(observation, deterministic=True)
+        return self._ddpg.predict(observation, deterministic=True)
 
-    def execute(self, num_of_step: int) -> agents:
+    def execute(self, num_of_step: int, render: bool = False) -> agents:
         """ 
         Execute the policy in the environment
         
@@ -147,4 +190,4 @@ class maddpg:
         Returns: 
             An iterator over the agent
         """
-        return iter(agents(self, self.__env, num_of_step, max_steps=2*num_of_step))
+        return iter(agents(self, min_steps=num_of_step, max_steps=2*num_of_step, render=render))
