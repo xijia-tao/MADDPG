@@ -17,12 +17,14 @@ if __name__ == '__main__':
     )
     model.learn(DEFAULT_LEARN_STEPS)
 
+    eval(model, 100)
+    
+    #TODO: Trouble-shooting
     results = []
     
     for interact in model.execute(DEFAULT_TEST_STEPS):
         if isinstance(interact, np.ndarray):
             results.append(interact)
-
+    
     if len(results) != 0:
         np.savez(OUTPUT_FRAMES_DIR, frames=np.array(results))
-    
