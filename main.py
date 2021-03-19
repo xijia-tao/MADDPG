@@ -2,6 +2,7 @@ import numpy as np
 from ma_policy import MaPolicy
 from maddpg import MaDDPG
 from torch import round
+from eval import eval
 
 DEFAULT_LEARN_STEPS  = 10000
 DEFAULT_TEST_STEPS   = 10000
@@ -18,7 +19,7 @@ if __name__ == '__main__':
     model.learn(DEFAULT_LEARN_STEPS)
 
     eval(model, 100)
-    
+
     #TODO: Trouble-shooting
     results = []
     
